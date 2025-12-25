@@ -1,7 +1,7 @@
 export const serviceName = process.env.SERVICE_NAME;
 export const corsUrl = process.env.CORS_URL;
 export const environment = process.env.NODE_ENV;
-export const port = parseInt(process.env.API_PORT!);
+export const port = parseInt(process.env.API_PORT!) || 3000;
 
 export const consoleLog = {
   format: process.env.CONSOLE_LOG_FORMAT || 'plain',
