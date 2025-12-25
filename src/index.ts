@@ -13,11 +13,21 @@ const shutdown = async () => {
   });
 };
 
-Postgres.createConnection(postgresOptions);
+const startServer = async () => {
+  try {
+    await Postgres.createConnection(postgresOptions);
+    httpServer
+      .listen(port, '0.0.0.0', () =>
+        logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`)
+      )
+      .on('error', logger.error);
+  } catch (err) {
+    logger.error('Failed to connect to Postgres:', err);
+    process.exit(1);
+  }
+};
 
-httpServer
-  .listen(port, '0.0.0.0', () => logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`))
-  .on('error', logger.error);
+startServer();
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
