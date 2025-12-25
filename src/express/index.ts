@@ -22,6 +22,10 @@ app.get('/', (_req, res) => {
   res.status(200).send('OK');
 });
 
+app.head('/', (_req, res) => {
+  res.sendStatus(200);
+});
+
 if (routerLog.active) app.use(morgan(routerLog.format));
 
 app.use(cookieParser());
