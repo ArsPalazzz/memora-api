@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["sub"],
+  "additionalProperties": false,
+  "properties": {
+    "sub": {
+      "format": "uuid",
+      "type": "string"
+    }
+  }
+}

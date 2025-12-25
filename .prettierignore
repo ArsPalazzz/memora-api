@@ -1,0 +1,6 @@
+doc
+node_modules
+README.md
+build
+dist
+.env
