@@ -16,7 +16,7 @@ const shutdown = async () => {
 Postgres.createConnection(postgresOptions);
 
 httpServer
-  .listen(port, () => logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`))
+  .listen(port, '0.0.0.0', () => logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`))
   .on('error', logger.error);
 
 process.on('SIGINT', shutdown);
