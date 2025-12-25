@@ -8,14 +8,10 @@ import authProvider, { AuthProvider } from '../../providers/auth/AuthProvider';
 import { UserRole } from './user.const';
 
 export class UserService {
-  private subscribed;
-
   constructor(
     public userRepository: UserRepository,
     public authProvider: AuthProvider
-  ) {
-    this.subscribed = [];
-  }
+  ) {}
 
   async createUser(params: CreateUserPayload) {
     const exists = await this.userRepository.existByEmail(params.email);

@@ -1,6 +1,6 @@
 import { createLogger, config } from 'winston';
-import { serviceName } from '../config.ts';
-import { consoleTransport, lokiTransport } from './transports/index.ts';
+import { serviceName } from '../config';
+import { consoleTransport, lokiTransport } from './transports/index';
 
 const transports = [consoleTransport, lokiTransport];
 

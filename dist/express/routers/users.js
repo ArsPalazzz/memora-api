@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.users = void 0;
+const express_1 = require("express");
+const middlewares_1 = require("../middlewares");
+const userCtr_1 = require("../controllers/users/userCtr");
+const users = (0, express_1.Router)();
+exports.users = users;
+users.post('/users/create', userCtr_1.createUserCtr);
+users.get('/users/my-profile', middlewares_1.tokenValidator, userCtr_1.getMyProfileCtr);

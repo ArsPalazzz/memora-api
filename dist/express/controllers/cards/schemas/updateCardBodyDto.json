@@ -1,0 +1,17 @@
+{
+    "type": "object",
+    "required": ["front", "back"],
+    "additionalProperties": false,
+    "properties": {
+        "front": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+        },
+        "back": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+        }
+    }
+}

@@ -1,4 +1,4 @@
-import consoleTransport from './ConsoleTransport.ts';
-import lokiTransport from './LokiTransport.ts';
+import consoleTransport from './ConsoleTransport';
+import lokiTransport from './LokiTransport';
 
 export { consoleTransport, lokiTransport };

@@ -1,10 +1,10 @@
 import { transports } from 'winston';
 
-import { consoleLog } from '../../config.ts';
+import { consoleLog } from '../../config';
 
 const { format, level } = consoleLog;
 
-import { planeConsoleFormatter, jsonConsoleFormatter } from '../services/index.ts';
+import { planeConsoleFormatter, jsonConsoleFormatter } from '../services/index';
 
 function setConsoleFormat(format: string) {
   switch (format) {

@@ -1,7 +1,7 @@
 import { createClient } from 'redis';
 import logger from '../../logger';
 
-import { RedisInstance } from './redis.types.ts';
+import { RedisInstance } from './redis.types';
 
 export default class RedisClient {
   private static instance: RedisInstance;

@@ -23,8 +23,8 @@ export const parserOptions = {
 };
 
 export const jwtConfig = {
-  secret: process.env.JWT_SECRET,
-  expiresIn: process.env.JWT_EXPIRES,
+  secret: process.env.JWT_SECRET!,
+  expiresIn: process.env.JWT_EXPIRES!,
 };
 
 export const redisOptions = {

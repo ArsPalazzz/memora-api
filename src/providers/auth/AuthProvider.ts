@@ -10,19 +10,24 @@ export interface UserTokenPayload {
   role: string;
 }
 
+export interface UserTokenData extends UserTokenPayload {
+  exp: number;
+  iat: number;
+}
+
 export class AuthProvider {
   constructor(
     private readonly secret: string,
     private readonly expiresIn: string
   ) {}
 
-  async validateToken(token: string): Promise<UserTokenPayload> {
+  async validateToken(token: string): Promise<UserTokenData> {
     return new Promise((resolve, reject) => {
       jwt.verify(token, this.secret, (err, payload) => {
         if (err) {
           reject(err);
         }
-        resolve(payload as UserTokenPayload);
+        resolve(payload as UserTokenData);
       });
     });
   }

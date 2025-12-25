@@ -10,14 +10,10 @@ import { GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 
 export class CardService {
-  private subscribed;
-
   constructor(
     public cardRepository: CardRepository,
     public deskSettingsRepository: DeskSettingsRepository
-  ) {
-    this.subscribed = [];
-  }
+  ) {}
 
   async getAllCards(): Promise<any> {
     return await this.cardRepository.getCards();
