@@ -18,6 +18,10 @@ import swaggerDocument from './swagger';
 export const app = express();
 export const httpServer = http.createServer(app);
 
+app.get('/', (_req, res) => {
+  res.status(200).send('OK');
+});
+
 if (routerLog.active) app.use(morgan(routerLog.format));
 
 app.use(cookieParser());
