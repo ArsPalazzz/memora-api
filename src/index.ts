@@ -1,16 +1,16 @@
 import logger from './logger';
-import { app } from './express';
+import { httpServer } from './express';
 import Postgres from './databases/postgre';
 import { serviceName, postgresOptions } from './config';
 
 const shutdown = async () => {
   logger.info(`⚠️ Gracefully shutting down`);
 
-  // httpServer.close(async () => {
-  //   await Postgres.close();
-  //   logger.info('👋 All requests stopped, shutting down');
-  //   process.exit();
-  // });
+  httpServer.close(async () => {
+    await Postgres.close();
+    logger.info('👋 All requests stopped, shutting down');
+    process.exit();
+  });
 };
 
 const port = Number(process.env.PORT);
@@ -22,7 +22,7 @@ if (!port) {
 const startServer = async () => {
   try {
     await Postgres.createConnection(postgresOptions);
-    app
+    httpServer
       .listen(port, '0.0.0.0', () =>
         logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`)
       )
