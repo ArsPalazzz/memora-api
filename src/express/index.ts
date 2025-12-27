@@ -16,6 +16,9 @@ import { auth } from './routers/auth';
 import swaggerDocument from './swagger';
 
 export const app = express();
+app.get('/__ping', (_req, res) => {
+  res.status(200).send('pong');
+});
 export const httpServer = http.createServer(app);
 
 app.get('/', (_req, res) => {
