@@ -4,7 +4,7 @@ exports.postgresOptions = exports.redisOptions = exports.jwtConfig = exports.par
 exports.serviceName = process.env.SERVICE_NAME;
 exports.corsUrl = process.env.CORS_URL;
 exports.environment = process.env.NODE_ENV;
-exports.port = parseInt(process.env.API_PORT);
+exports.port = parseInt(process.env.PORT);
 exports.consoleLog = {
     format: process.env.CONSOLE_LOG_FORMAT || 'plain',
     level: process.env.CONSOLE_LOG_LEVEL || 'error',

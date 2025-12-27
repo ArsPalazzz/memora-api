@@ -1,5 +1,5 @@
 import logger from './logger';
-import { app, httpServer } from './express';
+import { app } from './express';
 import Postgres from './databases/postgre';
 import { serviceName, postgresOptions } from './config';
 
