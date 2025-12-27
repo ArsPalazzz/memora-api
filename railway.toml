@@ -2,4 +2,4 @@
 command = "npm run build"
 
 [start]
-command = "npm run start:prod"
+command = "sh -c 'npm run start:prod'"
