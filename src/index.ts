@@ -1,7 +1,7 @@
 import logger from './logger';
 import { httpServer } from './express';
 import Postgres from './databases/postgre';
-import { port, serviceName, postgresOptions } from './config';
+import { serviceName, postgresOptions } from './config';
 
 const shutdown = async () => {
   logger.info(`⚠️ Gracefully shutting down`);
@@ -12,6 +12,12 @@ const shutdown = async () => {
     process.exit();
   });
 };
+
+const port = Number(process.env.PORT);
+
+if (!port) {
+  throw new Error('PORT is not defined');
+}
 
 const startServer = async () => {
   try {
