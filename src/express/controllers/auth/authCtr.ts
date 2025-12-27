@@ -24,8 +24,7 @@ export async function authCtr(req: Request, res: Response, next: NextFunction) {
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      // TODO: Change before deployment
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
