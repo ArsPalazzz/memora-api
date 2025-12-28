@@ -42,11 +42,8 @@ export async function authCtr(req: Request, res: Response, next: NextFunction) {
 
 export async function authMeCtr(req: Request, res: Response, next: NextFunction) {
   try {
-    console.log('start api');
     const refreshToken = req.cookies.refreshToken;
-    console.log('got token');
     const result = await authService.isAuthenticated(refreshToken);
-    console.log('end');
 
     res.json({ result });
   } catch (err) {
