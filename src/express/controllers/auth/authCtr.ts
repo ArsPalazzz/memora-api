@@ -40,6 +40,23 @@ export async function authCtr(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+export async function authMeCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const refreshToken = req.cookies.refreshToken;
+    const res = await authService.isAuthenticated(refreshToken);
+
+    return res;
+  } catch (err) {
+    if (err instanceof Error) {
+      if (err.message.includes('Not authenticated')) {
+        return next(createError(401, err.message));
+      }
+    }
+
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+}
+
 export async function refreshCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const oldRefresh = req.cookies.refreshToken;
