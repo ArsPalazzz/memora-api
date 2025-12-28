@@ -8,7 +8,6 @@ import {
   GET_CARDS,
   GET_CARDS_FOR_PLAY,
   GET_DESK_DETAILS,
-  GET_DESKS,
   GET_DESKS_BY_CREATOR_SUB,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
@@ -42,18 +41,6 @@ export class CardRepository extends Table {
     };
 
     return this.getItems<{ id: number; front_side: string; back_side: string }>(query);
-  }
-
-  async getDesks() {
-    const query: Query = {
-      name: 'getDesks',
-      text: GET_DESKS,
-      values: [],
-    };
-
-    return this.getItems<{ sub: string; title: string; description: string; created_at: string }>(
-      query
-    );
   }
 
   async getDesksByCreatorSub(userSub: string) {
