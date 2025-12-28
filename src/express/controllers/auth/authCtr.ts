@@ -45,9 +45,10 @@ export async function authMeCtr(req: Request, res: Response, next: NextFunction)
     console.log('start api');
     const refreshToken = req.cookies.refreshToken;
     console.log('got token');
-    const res = await authService.isAuthenticated(refreshToken);
+    const result = await authService.isAuthenticated(refreshToken);
     console.log('end');
-    return res;
+
+    res.json({ result });
   } catch (err) {
     if (err instanceof Error) {
       if (err.message.includes('Not authenticated')) {
