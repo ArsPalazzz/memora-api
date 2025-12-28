@@ -34,7 +34,9 @@ export async function getCardsCtr(req: Request, res: Response, next: NextFunctio
 
 export async function getDesksCtr(req: Request, res: Response, next: NextFunction) {
   try {
-    const desks = await cardService.getAllDesks();
+    const creatorSub = res.locals.userSub as string;
+
+    const desks = await cardService.getUserDesks(creatorSub);
     res.json(desks);
   } catch (e) {
     next(e);

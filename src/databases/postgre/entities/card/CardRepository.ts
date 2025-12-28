@@ -9,6 +9,7 @@ import {
   GET_CARDS_FOR_PLAY,
   GET_DESK_DETAILS,
   GET_DESKS,
+  GET_DESKS_BY_CREATOR_SUB,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
   INSERT_CARD,
@@ -48,6 +49,18 @@ export class CardRepository extends Table {
       name: 'getDesks',
       text: GET_DESKS,
       values: [],
+    };
+
+    return this.getItems<{ sub: string; title: string; description: string; created_at: string }>(
+      query
+    );
+  }
+
+  async getDesksByCreatorSub(userSub: string) {
+    const query: Query = {
+      name: 'getDesksByCreatorSub',
+      text: GET_DESKS_BY_CREATOR_SUB,
+      values: [userSub],
     };
 
     return this.getItems<{ sub: string; title: string; description: string; created_at: string }>(

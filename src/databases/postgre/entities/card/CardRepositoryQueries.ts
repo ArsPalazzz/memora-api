@@ -70,8 +70,8 @@ export const GET_CARDS_FOR_PLAY = `
     LIMIT $2
 `;
 
-export const GET_DESKS = `
-  SELECT sub, title, description, created_at FROM cards.desk ORDER BY created_at DESC;
+export const GET_DESKS_BY_CREATOR_SUB = `
+  SELECT sub, title, description, created_at FROM cards.desk WHERE creator_sub = $1 ORDER BY created_at DESC;
 `;
 
 export const GET_DESK_DETAILS = `

@@ -56,8 +56,8 @@ export class CardService {
     return cards;
   }
 
-  async getAllDesks(): Promise<any> {
-    return await this.cardRepository.getDesks();
+  async getUserDesks(userSub: string): Promise<any> {
+    return await this.cardRepository.getDesksByCreatorSub(userSub);
   }
 
   async getDesk(payload: GetDeskPayload): Promise<any> {
