@@ -66,9 +66,8 @@ export async function refreshCtr(req: Request, res: Response, next: NextFunction
 
     res.cookie('refreshToken', newRefresh, {
       httpOnly: true,
-      // TODO: Change before deployment
-      secure: false,
-      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 
@@ -85,9 +84,9 @@ export async function logoutCtr(req: Request, res: Response, next: NextFunction)
     if (refreshToken) {
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        // TODO: Change before deployment
-        secure: false,
-        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
     }
 
