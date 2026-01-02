@@ -15,4 +15,3 @@ cards.put('/desks/:sub', middlewares_1.tokenValidator, cardCtr_1.updateDeskCtr);
 cards.put('/cards/:sub', middlewares_1.tokenValidator, cardCtr_1.updateCardCtr);
 cards.delete('/desks/:sub', middlewares_1.tokenValidator, cardCtr_1.archivedDeskCtr);
 cards.put('/desks/:sub/settings', middlewares_1.tokenValidator, cardCtr_1.updateDeskSettingsCtr);
-cards.post('/desks/:sub/play', middlewares_1.tokenValidator, cardCtr_1.playDeskCtr);

@@ -45,7 +45,6 @@ exports.updateDeskCtr = updateDeskCtr;
 exports.updateCardCtr = updateCardCtr;
 exports.archivedDeskCtr = archivedDeskCtr;
 exports.updateDeskSettingsCtr = updateDeskSettingsCtr;
-exports.playDeskCtr = playDeskCtr;
 const CardService_1 = __importDefault(require("../../../services/cards/CardService"));
 const UserService_1 = __importDefault(require("../../../services/users/UserService"));
 const utils_1 = require("../../../utils");
@@ -77,7 +76,8 @@ async function getCardsCtr(req, res, next) {
 }
 async function getDesksCtr(req, res, next) {
     try {
-        const desks = await CardService_1.default.getAllDesks();
+        const creatorSub = res.locals.userSub;
+        const desks = await CardService_1.default.getUserDesks(creatorSub);
         res.json(desks);
     }
     catch (e) {
@@ -235,16 +235,6 @@ async function updateDeskSettingsCtr(req, res, next) {
             creatorSub,
         });
         res.json({ updated: true });
-    }
-    catch (e) {
-        next(e);
-    }
-}
-async function playDeskCtr(req, res, next) {
-    try {
-        const deskSub = req.params.sub;
-        const cards = await CardService_1.default.getCardsForPlay(deskSub);
-        res.json({ deskSub, cards });
     }
     catch (e) {
         next(e);

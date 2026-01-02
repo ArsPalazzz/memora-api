@@ -108,13 +108,10 @@ export class GameService {
       (variant) => this.normalize(variant) === normalizedAnswer
     );
 
-    const quality = this.calculateQuality(isCorrect);
-
     await this.gameSessionRepository.saveAnswer({
       sessionCardId,
       answer,
       isCorrect,
-      quality,
     });
 
     const hasMore = await this.gameSessionRepository.hasUnansweredCards(sessionId);
@@ -127,6 +124,21 @@ export class GameService {
       finished: !hasMore,
       correctVariants,
     };
+  }
+
+  async gradeCard(params: { sessionId: string; userSub: string; quality: number }) {
+    const { sessionId, userSub, quality } = params;
+
+    const exist = await this.gameSessionRepository.existBySessionId(sessionId);
+    if (!exist) throw new NotFoundError('Session not found');
+
+    const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
+    if (!haveAccess) throw new ForbiddenError('No access to session');
+
+    const lastCard = await this.gameSessionCardRepository.getLastAnsweredCard(sessionId);
+    if (!lastCard) throw new BadRequestError('No answered card to grade');
+
+    await cardService.updateSrs(userSub, lastCard.cardSub, quality);
   }
 
   async finishGameSession(params: { sessionId: string; userSub: string }) {
@@ -150,11 +162,6 @@ export class GameService {
     }
 
     await this.gameSessionRepository.finish(sessionId);
-  }
-
-  private calculateQuality(isCorrect: boolean): number {
-    // TODO: Change
-    return isCorrect ? 5 : 2;
   }
 
   private normalize(value: string): string {

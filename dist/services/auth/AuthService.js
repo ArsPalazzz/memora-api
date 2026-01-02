@@ -32,6 +32,16 @@ class AuthService {
         });
         return { accessToken, refreshToken };
     }
+    async isAuthenticated(refreshToken) {
+        if (!refreshToken) {
+            throw new Error('Not authenticated');
+        }
+        const { exp, iat, ...cleanPayload } = await this.authProvider.validateToken(refreshToken);
+        return {
+            sub: cleanPayload.sub,
+            authenticated: true,
+        };
+    }
     async refreshSession(refreshToken) {
         const { exp, iat, ...cleanPayload } = await this.authProvider.validateToken(refreshToken);
         const newAccess = await this.authProvider.createAccessToken(cleanPayload);

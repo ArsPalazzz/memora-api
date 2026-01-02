@@ -4,6 +4,9 @@ import cardRepository, {
 import deskSettingsRepository, {
   DeskSettingsRepository,
 } from '../../databases/postgre/entities/card/DeskSettingsRepository';
+import userCardSrsRepository, {
+  UserCardSrsRepository,
+} from '../../databases/postgre/entities/card/UserCardSrsRepository';
 import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
 import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT } from './card.const';
@@ -12,8 +15,9 @@ import { v4 as uuidV4 } from 'uuid';
 
 export class CardService {
   constructor(
-    public cardRepository: CardRepository,
-    public deskSettingsRepository: DeskSettingsRepository
+    private readonly cardRepository: CardRepository,
+    private readonly deskSettingsRepository: DeskSettingsRepository,
+    private readonly userCardSrsRepository: UserCardSrsRepository
   ) {}
 
   async getAllCards(): Promise<any> {
@@ -148,6 +152,21 @@ export class CardService {
     await this.cardRepository.archiveDesk({ desk_sub: deskSub });
   }
 
+  async updateSrs(userSub: string, cardSub: string, quality: number) {
+    const prevSrs = await this.userCardSrsRepository.get(userSub, cardSub);
+
+    const srs = this.calculateSrs(prevSrs, quality);
+
+    await this.userCardSrsRepository.upsert({
+      userSub,
+      cardSub,
+      repetitions: srs.repetitions,
+      intervalDays: srs.interval,
+      easeFactor: srs.ease,
+      nextReview: srs.nextReview,
+    });
+  }
+
   async updateDeskSettings(payload: {
     deskSub: string;
     body: { cards_per_session: number; card_orientation: CARD_ORIENTATION };
@@ -174,6 +193,30 @@ export class CardService {
       payload: body,
     });
   }
+
+  private calculateSrs(prev: any | null, quality: number) {
+    let repetitions = prev?.repetitions ?? 0;
+    let interval = prev?.interval_days ?? 0;
+    let ease = prev?.ease_factor ?? 2.5;
+
+    if (quality < 3) {
+      repetitions = 0;
+      interval = 1;
+    } else {
+      repetitions += 1;
+
+      if (repetitions === 1) interval = 1;
+      else if (repetitions === 2) interval = 6;
+      else interval = Math.round(interval * ease);
+
+      ease = Math.max(1.3, ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+    }
+
+    const nextReview = new Date();
+    nextReview.setDate(nextReview.getDate() + interval);
+
+    return { repetitions, interval, ease, nextReview };
+  }
 }
 
-export default new CardService(cardRepository, deskSettingsRepository);
+export default new CardService(cardRepository, deskSettingsRepository, userCardSrsRepository);

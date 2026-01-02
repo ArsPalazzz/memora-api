@@ -2,6 +2,7 @@ import { Query } from '../..';
 import Table, { PgTransaction } from '../Table';
 import {
   CREATE_GAME_SESSION_CARD,
+  GET_LAST_ANSWERED_CARD,
   GET_NEXT_IN_SESSION_CARD,
 } from './GameSessionCardRepositoryQueries';
 
@@ -22,6 +23,16 @@ export class GameSessionCardRepository extends Table {
     };
 
     return this.getItem<{ sub: string; text: string[] }>(query);
+  }
+
+  async getLastAnsweredCard(sessionId: string) {
+    const query: Query = {
+      name: 'getLastAnsweredCard',
+      text: GET_LAST_ANSWERED_CARD,
+      values: [sessionId],
+    };
+
+    return this.getItem<{ cardSub: string; quality: number }>(query);
   }
 }
 

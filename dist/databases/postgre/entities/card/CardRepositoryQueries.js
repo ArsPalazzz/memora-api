@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GET_DESK_DETAILS = exports.GET_DESKS = exports.GET_CARDS_FOR_PLAY = exports.GET_CARDS = exports.INSERT_DESK_SETTINGS = exports.INSERT_DESK = exports.ARCHIVE_DESK = exports.UPDATE_CARD = exports.UPDATE_DESK = exports.UPDATE_DESK_SETTINGS = exports.HAVE_ACCESS_TO_CARD = exports.HAVE_ACCESS_TO_DESK = exports.UPDATE_LAST_TIME_PLAYED_DESK = exports.EXIST_DESK = exports.EXIST_CARD_BY_SUB = exports.EXIST_CARD = exports.INSERT_CARD = void 0;
+exports.GET_DESK_DETAILS = exports.GET_DESKS_BY_CREATOR_SUB = exports.GET_CARD_SUBS_FOR_PLAY = exports.GET_CARDS = exports.INSERT_DESK_SETTINGS = exports.INSERT_DESK = exports.ARCHIVE_DESK = exports.UPDATE_CARD = exports.UPDATE_DESK = exports.UPDATE_DESK_SETTINGS = exports.HAVE_ACCESS_TO_CARD = exports.HAVE_ACCESS_TO_DESK = exports.UPDATE_LAST_TIME_PLAYED_DESK = exports.EXIST_DESK = exports.EXIST_CARD_BY_SUB = exports.EXIST_CARD = exports.INSERT_CARD = void 0;
 exports.INSERT_CARD = `
-  INSERT INTO cards.card (desk_sub, front_side, back_side, sub) VALUES ($1, $2, $3, $4) RETURNING *;
+  INSERT INTO cards.card (desk_sub, front_variants, back_variants, sub) VALUES ($1, $2::jsonb, $3::jsonb, $4) RETURNING *;
 `;
 exports.EXIST_CARD = `
   SELECT EXISTS (SELECT 1 FROM cards.card WHERE id = $1);
@@ -37,7 +37,7 @@ exports.UPDATE_DESK = `
   UPDATE cards.desk SET title = $2, description = $3 WHERE sub = $1;
 `;
 exports.UPDATE_CARD = `
-  UPDATE cards.card SET front_side = $2, back_side = $3 WHERE sub = $1;
+  UPDATE cards.card SET front_variants = $2::jsonb, back_variants = $3::jsonb WHERE sub = $1;
 `;
 exports.ARCHIVE_DESK = `
   UPDATE cards.desk SET status = 'archived' WHERE sub = $1;
@@ -51,15 +51,15 @@ exports.INSERT_DESK_SETTINGS = `
 exports.GET_CARDS = `
   SELECT * FROM cards.card ORDER BY created_at DESC;
 `;
-exports.GET_CARDS_FOR_PLAY = `
-    SELECT id, front_side, back_side
+exports.GET_CARD_SUBS_FOR_PLAY = `
+    SELECT sub
     FROM cards.card
     WHERE desk_sub = $1
     ORDER BY random()
     LIMIT $2
 `;
-exports.GET_DESKS = `
-  SELECT sub, title, description, created_at FROM cards.desk ORDER BY created_at DESC;
+exports.GET_DESKS_BY_CREATOR_SUB = `
+  SELECT sub, title, description, created_at FROM cards.desk WHERE creator_sub = $1 ORDER BY created_at DESC;
 `;
 exports.GET_DESK_DETAILS = `
   WITH desk_data AS (
@@ -87,8 +87,8 @@ exports.GET_DESK_DETAILS = `
       json_agg(
         json_build_object(
           'sub', c.sub,
-          'front_side', c.front_side,
-          'back_side', c.back_side,
+          'front_variants', c.front_variants,
+          'back_variants', c.back_variants,
           'created_at', c.created_at
         )
         ORDER BY c.created_at DESC

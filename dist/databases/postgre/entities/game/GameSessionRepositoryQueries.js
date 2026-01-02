@@ -1,24 +1,22 @@
-export const CREATE_GAME_SESSION = `
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.HAS_UNANSWERED_CARDS = exports.SAVE_ANSWER = exports.GET_NEXT_UNANSWERED_CARD = exports.FINISH_SESSION = exports.IS_SESSION_ACTIVE = exports.EXIST_BY_SESSION_ID = exports.HAVE_ACCESS_TO_SESSION = exports.CREATE_GAME_SESSION = void 0;
+exports.CREATE_GAME_SESSION = `
   INSERT INTO games.session(id, user_sub, type, mode, desk_sub, status, created_at)
     VALUES($1,$2,'desk','write',$3,'active',NOW())`;
-
-export const HAVE_ACCESS_TO_SESSION = `
+exports.HAVE_ACCESS_TO_SESSION = `
   SELECT EXISTS (SELECT 1 FROM games.session WHERE id = $1 AND user_sub = $2);
 `;
-
-export const EXIST_BY_SESSION_ID = `
+exports.EXIST_BY_SESSION_ID = `
   SELECT EXISTS (SELECT 1 FROM games.session WHERE id = $1);
 `;
-
-export const IS_SESSION_ACTIVE = `
+exports.IS_SESSION_ACTIVE = `
   SELECT EXISTS (SELECT 1 FROM games.session WHERE id = $1 AND status = 'active');
 `;
-
-export const FINISH_SESSION = `
+exports.FINISH_SESSION = `
   UPDATE games.session SET status = 'finished' WHERE id = $1;
 `;
-
-export const GET_NEXT_UNANSWERED_CARD = `
+exports.GET_NEXT_UNANSWERED_CARD = `
   SELECT
     sc.id            AS "sessionCardId",
     sc.card_sub AS "cardSub",
@@ -34,17 +32,16 @@ export const GET_NEXT_UNANSWERED_CARD = `
   ORDER BY sc.id
   LIMIT 1;
 `;
-
-export const SAVE_ANSWER = `
+exports.SAVE_ANSWER = `
   UPDATE games.session_card
   SET
     user_answer = $1,
     is_correct = $2,
+    quality = $3,
     answered_at = NOW()
-  WHERE id = $3;
+  WHERE id = $4;
 `;
-
-export const HAS_UNANSWERED_CARDS = `
+exports.HAS_UNANSWERED_CARDS = `
   SELECT EXISTS (
     SELECT 1
     FROM games.session_card

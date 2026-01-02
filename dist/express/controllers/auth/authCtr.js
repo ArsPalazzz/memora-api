@@ -37,6 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.authCtr = authCtr;
+exports.authMeCtr = authMeCtr;
 exports.refreshCtr = refreshCtr;
 exports.logoutCtr = logoutCtr;
 const AuthService_1 = __importDefault(require("../../../services/auth/AuthService"));
@@ -55,9 +56,8 @@ async function authCtr(req, res, next) {
         const { accessToken, refreshToken } = await AuthService_1.default.login(body);
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            // TODO: Change before deployment
-            secure: false,
-            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000,
         });
         res.json({ accessToken });
@@ -71,6 +71,21 @@ async function authCtr(req, res, next) {
         next(e);
     }
 }
+async function authMeCtr(req, res, next) {
+    try {
+        const refreshToken = req.cookies.refreshToken;
+        const result = await AuthService_1.default.isAuthenticated(refreshToken);
+        res.json({ result });
+    }
+    catch (err) {
+        if (err instanceof Error) {
+            if (err.message.includes('Not authenticated')) {
+                return next((0, http_errors_1.default)(401, err.message));
+            }
+        }
+        return res.status(401).json({ message: 'Invalid token' });
+    }
+}
 async function refreshCtr(req, res, next) {
     try {
         const oldRefresh = req.cookies.refreshToken;
@@ -79,9 +94,8 @@ async function refreshCtr(req, res, next) {
         const { accessToken, refreshToken: newRefresh } = await AuthService_1.default.refreshSession(oldRefresh);
         res.cookie('refreshToken', newRefresh, {
             httpOnly: true,
-            // TODO: Change before deployment
-            secure: false,
-            sameSite: 'lax',
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 30 * 24 * 60 * 60 * 1000,
         });
         res.json({ accessToken });
@@ -96,9 +110,9 @@ async function logoutCtr(req, res, next) {
         if (refreshToken) {
             res.clearCookie('refreshToken', {
                 httpOnly: true,
-                // TODO: Change before deployment
-                secure: false,
-                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+                maxAge: 30 * 24 * 60 * 60 * 1000,
             });
         }
         res.json({ message: 'Logged out successfully' });

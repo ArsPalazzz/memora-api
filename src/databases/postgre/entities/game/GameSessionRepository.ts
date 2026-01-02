@@ -76,16 +76,11 @@ export class GameSessionRepository extends Table {
     }>(query);
   }
 
-  async saveAnswer(params: {
-    sessionCardId: number;
-    answer: string;
-    isCorrect: boolean;
-    quality: number;
-  }) {
+  async saveAnswer(params: { sessionCardId: number; answer: string; isCorrect: boolean }) {
     const query: Query = {
       name: 'saveAnswer',
       text: SAVE_ANSWER,
-      values: [params.answer, params.isCorrect, params.quality, params.sessionCardId],
+      values: [params.answer, params.isCorrect, params.sessionCardId],
     };
 
     await this.updateItems(query);

@@ -9,21 +9,17 @@ const postgre_1 = __importDefault(require("./databases/postgre"));
 const config_1 = require("./config");
 const shutdown = async () => {
     logger_1.default.info(`⚠️ Gracefully shutting down`);
-    // httpServer.close(async () => {
-    //   await Postgres.close();
-    //   logger.info('👋 All requests stopped, shutting down');
-    //   process.exit();
-    // });
+    express_1.httpServer.close(async () => {
+        await postgre_1.default.close();
+        logger_1.default.info('👋 All requests stopped, shutting down');
+        process.exit();
+    });
 };
-const port = Number(process.env.PORT);
-if (!port) {
-    throw new Error('PORT is not defined');
-}
 const startServer = async () => {
     try {
         await postgre_1.default.createConnection(config_1.postgresOptions);
-        express_1.app
-            .listen(port, '0.0.0.0', () => logger_1.default.info(`🚀 :: ${config_1.serviceName} is running on port :: ${port}`))
+        express_1.httpServer
+            .listen(config_1.port, '0.0.0.0', () => logger_1.default.info(`🚀 :: ${config_1.serviceName} is running on port :: ${config_1.port}`))
             .on('error', logger_1.default.error);
     }
     catch (err) {

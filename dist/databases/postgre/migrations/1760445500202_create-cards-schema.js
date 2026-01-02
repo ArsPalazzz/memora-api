@@ -133,38 +133,6 @@ export const up = (pgm) => {
       },
     }
   );
-
-  pgm.createTable(
-    { schema: 'cards', name: 'user_card_srs' },
-    {
-      user_sub: {
-        type: 'uuid',
-        notNull: true,
-        references: 'users.profile(sub)',
-      },
-      card_sub: {
-        type: 'uuid',
-        notNull: true,
-        references: 'cards.card(sub)',
-      },
-
-      repetitions: { type: 'int', notNull: true, default: 0 },
-      interval_days: { type: 'int', notNull: true, default: 0 },
-      ease_factor: { type: 'numeric(4,2)', notNull: true, default: 2.5 },
-
-      next_review: {
-        type: 'timestamp',
-        notNull: true,
-        default: pgm.func('NOW()'),
-      },
-      last_review: { type: 'timestamp' },
-    },
-    {
-      constraints: {
-        primaryKey: ['user_sub', 'card_sub'],
-      },
-    }
-  );
 };
 
 /**
@@ -173,7 +141,6 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
-  pgm.dropTable({ schema: 'cards', name: 'user_card_srs' });
   pgm.dropTable({ schema: 'cards', name: 'desk_settings' });
   pgm.dropType({ schema: 'cards', name: 'card_orientation_enum' });
   pgm.dropTable({ schema: 'cards', name: 'card' });

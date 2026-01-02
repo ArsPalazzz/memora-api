@@ -15,19 +15,19 @@ class CardRepository extends Table_1.default {
         };
         return this.getItems(query);
     }
-    async getCardsForPlay(deskSub, cards_per_session) {
+    async getCardSubsForPlay(deskSub, cardsPerSession) {
         const query = {
-            name: 'getCardsForPlay',
-            text: CardRepositoryQueries_1.GET_CARDS_FOR_PLAY,
-            values: [deskSub, cards_per_session],
+            name: 'getCardSubsForPlay',
+            text: CardRepositoryQueries_1.GET_CARD_SUBS_FOR_PLAY,
+            values: [deskSub, cardsPerSession],
         };
         return this.getItems(query);
     }
-    async getDesks() {
+    async getDesksByCreatorSub(userSub) {
         const query = {
-            name: 'getDesks',
-            text: CardRepositoryQueries_1.GET_DESKS,
-            values: [],
+            name: 'getDesksByCreatorSub',
+            text: CardRepositoryQueries_1.GET_DESKS_BY_CREATOR_SUB,
+            values: [userSub],
         };
         return this.getItems(query);
     }
@@ -43,7 +43,12 @@ class CardRepository extends Table_1.default {
         const query = {
             name: 'createCard',
             text: CardRepositoryQueries_1.INSERT_CARD,
-            values: [params.desk_sub, params.front, params.back, params.sub],
+            values: [
+                params.desk_sub,
+                JSON.stringify(params.front),
+                JSON.stringify(params.back),
+                params.sub,
+            ],
         };
         return this.insertItem(query);
     }
@@ -71,13 +76,12 @@ class CardRepository extends Table_1.default {
         };
         return this.exists(query);
     }
-    async updateLastTimePlayedDesk(deskSub) {
-        const query = {
+    async updateLastTimePlayedDesk(deskSub, tx) {
+        return tx.query({
             name: 'updateLastTimePlayedDesk',
             text: CardRepositoryQueries_1.UPDATE_LAST_TIME_PLAYED_DESK,
             values: [deskSub],
-        };
-        return this.updateItems(query);
+        });
     }
     async haveAccessToDesk(params) {
         const query = {
@@ -128,7 +132,11 @@ class CardRepository extends Table_1.default {
         const query = {
             name: 'updateCard',
             text: CardRepositoryQueries_1.UPDATE_CARD,
-            values: [params.card_sub, params.payload.front, params.payload.back],
+            values: [
+                params.card_sub,
+                JSON.stringify(params.payload.front),
+                JSON.stringify(params.payload.back),
+            ],
         };
         return this.updateItems(query);
     }

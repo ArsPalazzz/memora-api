@@ -16,36 +16,14 @@ class CardService {
     async getAllCards() {
         return await this.cardRepository.getCards();
     }
-    async getCardsForPlay(deskSub) {
-        const settings = await this.deskSettingsRepository.getByDeskSub(deskSub);
-        if (!settings) {
-            throw new Error('Desk settings not found');
-        }
-        const { cards_per_session, card_orientation } = settings;
-        const cardsRes = await this.cardRepository.getCardsForPlay(deskSub, cards_per_session);
-        if (!cardsRes.length) {
-            throw new Error(`There is not cards in desk with sub = ${deskSub}`);
-        }
-        const cards = cardsRes.map((card) => {
-            let showSide = 'front';
-            if (card_orientation === 'reversed') {
-                showSide = 'back';
-            }
-            if (card_orientation === 'mixed') {
-                showSide = Math.random() > 0.5 ? 'front' : 'back';
-            }
-            return {
-                id: card.id,
-                front: card.front_side,
-                back: card.back_side,
-                showSide,
-            };
-        });
-        await this.cardRepository.updateLastTimePlayedDesk(deskSub);
-        return cards;
+    async getDeskSettings(deskSub) {
+        return await this.deskSettingsRepository.getByDeskSub(deskSub);
     }
-    async getAllDesks() {
-        return await this.cardRepository.getDesks();
+    async updateLastTimePlayedDesk(deskSub, tx) {
+        await this.cardRepository.updateLastTimePlayedDesk(deskSub, tx);
+    }
+    async getUserDesks(userSub) {
+        return await this.cardRepository.getDesksByCreatorSub(userSub);
     }
     async getDesk(payload) {
         const { desk_sub, sub } = payload;
@@ -106,6 +84,9 @@ class CardService {
             card_sub: cardSub,
             payload: body,
         });
+    }
+    async getCardSubsForPlay(deskSub, cardsPerSession) {
+        return await this.cardRepository.getCardSubsForPlay(deskSub, cardsPerSession);
     }
     async archiveDesk(payload) {
         const { deskSub, creatorSub } = payload;
