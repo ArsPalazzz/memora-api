@@ -7,8 +7,8 @@ export interface GetDeskPayload {
 
 interface Card {
   sub: string;
-  front_side: string;
-  back_side: string;
+  front_variants: string;
+  back_variants: string;
   created_at: string;
 }
 

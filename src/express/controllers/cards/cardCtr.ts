@@ -74,7 +74,7 @@ export async function createCardCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const payload = req.body as { front: string; back: string; desk_sub: string };
+    const payload = req.body as { front: string[]; back: string[]; desk_sub: string };
     const creatorSub = res.locals.userSub as string;
 
     await userService.existProfile({ sub: creatorSub });
@@ -154,8 +154,8 @@ export async function updateCardCtr(req: Request, res: Response, next: NextFunct
   try {
     const params = { sub: req.params.sub };
     const body = {
-      front: req.body.front as string,
-      back: req.body.back as string,
+      front: req.body.front as string[],
+      back: req.body.back as string[],
     };
 
     if (!validateUpdateDeskParamsDto(params)) {
@@ -246,18 +246,6 @@ export async function updateDeskSettingsCtr(req: Request, res: Response, next: N
       creatorSub,
     });
     res.json({ updated: true });
-  } catch (e) {
-    next(e);
-  }
-}
-
-export async function playDeskCtr(req: Request, res: Response, next: NextFunction) {
-  try {
-    const deskSub = req.params.sub;
-
-    const cards = await cardService.getCardsForPlay(deskSub);
-
-    res.json({ deskSub, cards });
   } catch (e) {
     next(e);
   }

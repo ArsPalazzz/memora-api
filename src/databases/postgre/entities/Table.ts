@@ -1,6 +1,12 @@
-import { PoolClient } from 'pg';
+import { PoolClient, QueryResult } from 'pg';
 import Postgres, { Query } from '../index';
 import { DatabaseError } from '../../../exceptions';
+
+export interface PgTransaction {
+  query(req: Query): Promise<QueryResult<any>>;
+  commit(): Promise<void>;
+  rollback(): Promise<void>;
+}
 
 export default class Table {
   constructor(protected readonly schemaName: string = 'public') {}

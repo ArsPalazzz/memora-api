@@ -7,7 +7,6 @@ import {
   getCardsCtr,
   getDeskInfoCtr,
   getDesksCtr,
-  playDeskCtr,
   updateCardCtr,
   updateDeskCtr,
   updateDeskSettingsCtr,
@@ -24,6 +23,5 @@ cards.put('/desks/:sub', tokenValidator, updateDeskCtr);
 cards.put('/cards/:sub', tokenValidator, updateCardCtr);
 cards.delete('/desks/:sub', tokenValidator, archivedDeskCtr);
 cards.put('/desks/:sub/settings', tokenValidator, updateDeskSettingsCtr);
-cards.post('/desks/:sub/play', tokenValidator, playDeskCtr);
 
 export { cards };

@@ -1,12 +1,12 @@
-import Table from '../Table';
+import Table, { PgTransaction } from '../Table';
 import Postgres, { Query } from '../../index';
 import {
   ARCHIVE_DESK,
   EXIST_CARD,
   EXIST_CARD_BY_SUB,
   EXIST_DESK,
+  GET_CARD_SUBS_FOR_PLAY,
   GET_CARDS,
-  GET_CARDS_FOR_PLAY,
   GET_DESK_DETAILS,
   GET_DESKS_BY_CREATOR_SUB,
   HAVE_ACCESS_TO_CARD,
@@ -33,14 +33,14 @@ export class CardRepository extends Table {
     return this.getItems<any>(query);
   }
 
-  async getCardsForPlay(deskSub: string, cards_per_session: number) {
+  async getCardSubsForPlay(deskSub: string, cardsPerSession: number) {
     const query: Query = {
-      name: 'getCardsForPlay',
-      text: GET_CARDS_FOR_PLAY,
-      values: [deskSub, cards_per_session],
+      name: 'getCardSubsForPlay',
+      text: GET_CARD_SUBS_FOR_PLAY,
+      values: [deskSub, cardsPerSession],
     };
 
-    return this.getItems<{ id: number; front_side: string; back_side: string }>(query);
+    return this.getItems<{ sub: string }>(query);
   }
 
   async getDesksByCreatorSub(userSub: string) {
@@ -65,11 +65,16 @@ export class CardRepository extends Table {
     return this.getItem<GetDeskDetailsResult>(query);
   }
 
-  async createCard(params: { sub: string; front: string; back: string; desk_sub: string }) {
+  async createCard(params: { sub: string; front: string[]; back: string[]; desk_sub: string }) {
     const query: Query = {
       name: 'createCard',
       text: INSERT_CARD,
-      values: [params.desk_sub, params.front, params.back, params.sub],
+      values: [
+        params.desk_sub,
+        JSON.stringify(params.front),
+        JSON.stringify(params.back),
+        params.sub,
+      ],
     };
 
     return this.insertItem<number>(query);
@@ -105,14 +110,12 @@ export class CardRepository extends Table {
     return this.exists(query);
   }
 
-  async updateLastTimePlayedDesk(deskSub: string) {
-    const query: Query = {
+  async updateLastTimePlayedDesk(deskSub: string, tx: PgTransaction) {
+    return tx.query({
       name: 'updateLastTimePlayedDesk',
       text: UPDATE_LAST_TIME_PLAYED_DESK,
       values: [deskSub],
-    };
-
-    return this.updateItems(query);
+    });
   }
 
   async haveAccessToDesk(params: { user_sub: string; desk_sub: string }) {
@@ -174,11 +177,15 @@ export class CardRepository extends Table {
     return this.updateItems(query);
   }
 
-  async updateCard(params: { card_sub: string; payload: { front: string; back: string } }) {
+  async updateCard(params: { card_sub: string; payload: { front: string[]; back: string[] } }) {
     const query: Query = {
       name: 'updateCard',
       text: UPDATE_CARD,
-      values: [params.card_sub, params.payload.front, params.payload.back],
+      values: [
+        params.card_sub,
+        JSON.stringify(params.payload.front),
+        JSON.stringify(params.payload.back),
+      ],
     };
 
     return this.updateItems(query);

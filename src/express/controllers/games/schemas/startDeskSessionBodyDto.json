@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["deskSub"],
+  "additionalProperties": false,
+  "properties": {
+    "deskSub": {
+      "format": "uuid",
+      "type": "string"
+    }
+  }
+}

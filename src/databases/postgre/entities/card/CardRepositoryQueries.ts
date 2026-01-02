@@ -1,5 +1,5 @@
 export const INSERT_CARD = `
-  INSERT INTO cards.card (desk_sub, front_side, back_side, sub) VALUES ($1, $2, $3, $4) RETURNING *;
+  INSERT INTO cards.card (desk_sub, front_variants, back_variants, sub) VALUES ($1, $2::jsonb, $3::jsonb, $4) RETURNING *;
 `;
 
 export const EXIST_CARD = `
@@ -43,7 +43,7 @@ export const UPDATE_DESK = `
 `;
 
 export const UPDATE_CARD = `
-  UPDATE cards.card SET front_side = $2, back_side = $3 WHERE sub = $1;
+  UPDATE cards.card SET front_variants = $2::jsonb, back_variants = $3::jsonb WHERE sub = $1;
 `;
 
 export const ARCHIVE_DESK = `
@@ -62,8 +62,8 @@ export const GET_CARDS = `
   SELECT * FROM cards.card ORDER BY created_at DESC;
 `;
 
-export const GET_CARDS_FOR_PLAY = `
-    SELECT id, front_side, back_side
+export const GET_CARD_SUBS_FOR_PLAY = `
+    SELECT sub
     FROM cards.card
     WHERE desk_sub = $1
     ORDER BY random()
@@ -100,8 +100,8 @@ export const GET_DESK_DETAILS = `
       json_agg(
         json_build_object(
           'sub', c.sub,
-          'front_side', c.front_side,
-          'back_side', c.back_side,
+          'front_variants', c.front_variants,
+          'back_variants', c.back_variants,
           'created_at', c.created_at
         )
         ORDER BY c.created_at DESC

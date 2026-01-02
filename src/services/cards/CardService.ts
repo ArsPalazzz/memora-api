@@ -4,6 +4,7 @@ import cardRepository, {
 import deskSettingsRepository, {
   DeskSettingsRepository,
 } from '../../databases/postgre/entities/card/DeskSettingsRepository';
+import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
 import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT } from './card.const';
 import { GetDeskPayload } from './card.interfaces';
@@ -19,41 +20,12 @@ export class CardService {
     return await this.cardRepository.getCards();
   }
 
-  async getCardsForPlay(deskSub: string): Promise<any> {
-    const settings = await this.deskSettingsRepository.getByDeskSub(deskSub);
-    if (!settings) {
-      throw new Error('Desk settings not found');
-    }
+  async getDeskSettings(deskSub: string) {
+    return await this.deskSettingsRepository.getByDeskSub(deskSub);
+  }
 
-    const { cards_per_session, card_orientation } = settings;
-
-    const cardsRes = await this.cardRepository.getCardsForPlay(deskSub, cards_per_session);
-    if (!cardsRes.length) {
-      throw new Error(`There is not cards in desk with sub = ${deskSub}`);
-    }
-
-    const cards = cardsRes.map((card: { id: number; front_side: string; back_side: string }) => {
-      let showSide: 'front' | 'back' = 'front';
-
-      if (card_orientation === 'reversed') {
-        showSide = 'back';
-      }
-
-      if (card_orientation === 'mixed') {
-        showSide = Math.random() > 0.5 ? 'front' : 'back';
-      }
-
-      return {
-        id: card.id,
-        front: card.front_side,
-        back: card.back_side,
-        showSide,
-      };
-    });
-
-    await this.cardRepository.updateLastTimePlayedDesk(deskSub);
-
-    return cards;
+  async updateLastTimePlayedDesk(deskSub: string, tx: PgTransaction) {
+    await this.cardRepository.updateLastTimePlayedDesk(deskSub, tx);
   }
 
   async getUserDesks(userSub: string): Promise<any> {
@@ -77,7 +49,7 @@ export class CardService {
     return await this.cardRepository.getDeskDetails({ sub: desk_sub });
   }
 
-  async createCard(payload: { front: string; back: string; desk_sub: string }) {
+  async createCard(payload: { front: string[]; back: string[]; desk_sub: string }) {
     const deskExist = await this.cardRepository.existDesk({ sub: payload.desk_sub });
     if (!deskExist) {
       throw new NotFoundError(`CardService: desk with sub = ${payload.desk_sub} not found`);
@@ -127,7 +99,7 @@ export class CardService {
 
   async updateCard(payload: {
     cardSub: string;
-    body: { front: string; back: string };
+    body: { front: string[]; back: string[] };
     creatorSub: string;
   }) {
     const { cardSub, body, creatorSub } = payload;
@@ -150,6 +122,10 @@ export class CardService {
       card_sub: cardSub,
       payload: body,
     });
+  }
+
+  async getCardSubsForPlay(deskSub: string, cardsPerSession: number) {
+    return await this.cardRepository.getCardSubsForPlay(deskSub, cardsPerSession);
   }
 
   async archiveDesk(payload: { deskSub: string; creatorSub: string }) {

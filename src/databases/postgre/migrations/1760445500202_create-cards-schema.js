@@ -83,8 +83,16 @@ export const up = (pgm) => {
         notNull: true,
         references: 'cards.desk(sub)',
       },
-      front_side: { type: 'text', notNull: true },
-      back_side: { type: 'text', notNull: true },
+      front_variants: {
+        type: 'jsonb',
+        notNull: true,
+        default: pgm.func(`'[]'::jsonb`),
+      },
+      back_variants: {
+        type: 'jsonb',
+        notNull: true,
+        default: pgm.func(`'[]'::jsonb`),
+      },
       created_at: {
         type: 'timestamp',
         notNull: true,
@@ -138,5 +146,6 @@ export const down = (pgm) => {
   pgm.dropTable({ schema: 'cards', name: 'card' });
   pgm.dropTable({ schema: 'cards', name: 'public_desk' });
   pgm.dropTable({ schema: 'cards', name: 'desk' });
+  pgm.dropType({ schema: 'cards', name: 'desk_status_enum' });
   pgm.dropSchema('cards');
 };

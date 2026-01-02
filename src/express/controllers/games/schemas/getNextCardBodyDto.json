@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["sessionId"],
+  "additionalProperties": false,
+  "properties": {
+    "sessionId": {
+      "format": "uuid",
+      "type": "string"
+    }
+  }
+}

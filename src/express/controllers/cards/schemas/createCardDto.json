@@ -8,12 +8,14 @@
       "format": "uuid"
     },
     "front": {
-      "type": "string",
-      "minLength": 1
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
     },
     "back": {
-      "type": "string",
-      "minLength": 1
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1
     }
   }
 }

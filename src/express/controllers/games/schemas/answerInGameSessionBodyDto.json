@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["sessionId", "answer"],
+  "additionalProperties": false,
+  "properties": {
+    "sessionId": {
+      "format": "uuid",
+      "type": "string"
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
