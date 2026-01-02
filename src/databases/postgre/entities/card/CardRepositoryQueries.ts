@@ -50,6 +50,10 @@ export const ARCHIVE_DESK = `
   UPDATE cards.desk SET status = 'archived' WHERE sub = $1;
 `;
 
+export const DELETE_CARD = `
+  DELETE FROM cards.card WHERE sub = $1;
+`;
+
 export const INSERT_DESK = `
   INSERT INTO cards.desk (sub, title, description, creator_sub) VALUES ($1, $2, $3, $4) RETURNING created_at;
 `;

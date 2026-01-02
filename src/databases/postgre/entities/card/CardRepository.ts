@@ -2,6 +2,7 @@ import Table, { PgTransaction } from '../Table';
 import Postgres, { Query } from '../../index';
 import {
   ARCHIVE_DESK,
+  DELETE_CARD,
   EXIST_CARD,
   EXIST_CARD_BY_SUB,
   EXIST_DESK,
@@ -186,6 +187,16 @@ export class CardRepository extends Table {
         JSON.stringify(params.payload.front),
         JSON.stringify(params.payload.back),
       ],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async deleteCard(params: { cardSub: string }) {
+    const query: Query = {
+      name: 'deleteCard',
+      text: DELETE_CARD,
+      values: [params.cardSub],
     };
 
     return this.updateItems(query);

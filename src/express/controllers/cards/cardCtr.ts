@@ -189,6 +189,29 @@ export async function updateCardCtr(req: Request, res: Response, next: NextFunct
   }
 }
 
+export async function deleteCardCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect card params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    await cardService.deleteCard({ cardSub: params.sub, creatorSub });
+    res.json({ archived: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function archivedDeskCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const params = { sub: req.params.sub };

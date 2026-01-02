@@ -132,6 +132,26 @@ export class CardService {
     return await this.cardRepository.getCardSubsForPlay(deskSub, cardsPerSession);
   }
 
+  async deleteCard(payload: { cardSub: string; creatorSub: string }) {
+    const { cardSub, creatorSub } = payload;
+    const exist = await this.cardRepository.existCardBySub({ sub: cardSub });
+    if (!exist) {
+      throw new NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToCard({
+      user_sub: creatorSub,
+      card_sub: cardSub,
+    });
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `CardService: user with sub = ${creatorSub} cannot get access to card with sub = ${cardSub}`
+      );
+    }
+
+    await this.cardRepository.deleteCard({ cardSub });
+  }
+
   async archiveDesk(payload: { deskSub: string; creatorSub: string }) {
     const { deskSub, creatorSub } = payload;
     const exist = await this.cardRepository.existDesk({ sub: deskSub });

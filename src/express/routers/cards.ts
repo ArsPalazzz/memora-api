@@ -4,6 +4,7 @@ import {
   archivedDeskCtr,
   createCardCtr,
   createDeskCtr,
+  deleteCardCtr,
   getCardsCtr,
   getDeskInfoCtr,
   getDesksCtr,
@@ -21,6 +22,7 @@ cards.post('/desks/create', tokenValidator, createDeskCtr);
 cards.get('/desks/:sub', tokenValidator, getDeskInfoCtr);
 cards.put('/desks/:sub', tokenValidator, updateDeskCtr);
 cards.put('/cards/:sub', tokenValidator, updateCardCtr);
+cards.delete('/cards/:sub', tokenValidator, deleteCardCtr);
 cards.delete('/desks/:sub', tokenValidator, archivedDeskCtr);
 cards.put('/desks/:sub/settings', tokenValidator, updateDeskSettingsCtr);
 
