@@ -79,7 +79,7 @@ export const GET_DESKS_BY_CREATOR_SUB = `
 `;
 
 export const GET_DESK_DETAILS = `
-  WITH desk_data AS (
+   WITH desk_data AS (
     SELECT 
       d.sub,
       d.title,
@@ -90,6 +90,30 @@ export const GET_DESK_DETAILS = `
     FROM cards.desk d
     LEFT JOIN cards.desk_settings ds ON ds.desk_sub = d.sub
     WHERE d.sub = $1
+  ),
+  desk_cards AS (
+    SELECT 
+      c.sub,
+      c.front_variants,
+      c.back_variants,
+      c.created_at,
+      ucs.repetitions,
+      ucs.interval_days,
+      ucs.ease_factor,
+      ucs.next_review,
+      ucs.last_review
+    FROM cards.card c
+    LEFT JOIN cards.user_card_srs ucs ON ucs.card_sub = c.sub AND ucs.user_sub = $2
+    WHERE c.desk_sub = $1
+  ),
+  stats_calculation AS (
+    SELECT 
+      COUNT(*) as total_cards,
+      COUNT(CASE WHEN repetitions = 0 OR repetitions IS NULL THEN 1 END) as new_cards,
+      COUNT(CASE WHEN next_review <= NOW() THEN 1 END) as due_today,
+      COUNT(CASE WHEN interval_days > 30 THEN 1 END) as mastered_cards,
+      AVG(COALESCE(ease_factor, 2.5)) as avg_ease_factor
+    FROM desk_cards
   )
   SELECT 
     dd.sub,
@@ -103,15 +127,26 @@ export const GET_DESK_DETAILS = `
     COALESCE(
       json_agg(
         json_build_object(
-          'sub', c.sub,
-          'front_variants', c.front_variants,
-          'back_variants', c.back_variants,
-          'created_at', c.created_at
+          'sub', dc.sub,
+          'front_variants', dc.front_variants,
+          'back_variants', dc.back_variants,
+          'created_at', dc.created_at
         )
-        ORDER BY c.created_at DESC
-      ) FILTER (WHERE c.sub IS NOT NULL), '[]'
-    ) AS cards
+        ORDER BY dc.created_at DESC
+      ) FILTER (WHERE dc.sub IS NOT NULL), '[]'
+    ) AS cards,
+    json_build_object(
+      'total_cards', sc.total_cards,
+      'new_cards', sc.new_cards,
+      'due_today', sc.due_today,
+      'mastered_cards', sc.mastered_cards,
+      'avg_ease_factor', sc.avg_ease_factor
+    ) AS stats
   FROM desk_data dd
-  LEFT JOIN cards.card c ON c.desk_sub = dd.sub
-  GROUP BY dd.sub, dd.title, dd.description, dd.created_at, dd.cards_per_session, dd.card_orientation;
+  LEFT JOIN desk_cards dc ON true
+  LEFT JOIN stats_calculation sc ON true
+  GROUP BY 
+    dd.sub, dd.title, dd.description, dd.created_at, 
+    dd.cards_per_session, dd.card_orientation,
+    sc.total_cards, sc.new_cards, sc.due_today, sc.mastered_cards, sc.avg_ease_factor;
 `;

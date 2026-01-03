@@ -50,7 +50,7 @@ export class CardService {
       );
     }
 
-    return await this.cardRepository.getDeskDetails({ sub: desk_sub });
+    return await this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub });
   }
 
   async createCard(payload: { front: string[]; back: string[]; desk_sub: string }) {
@@ -181,9 +181,9 @@ export class CardService {
       userSub,
       cardSub,
       repetitions: srs.repetitions,
-      intervalDays: srs.interval,
-      easeFactor: srs.ease,
-      nextReview: srs.nextReview,
+      intervalDays: srs.interval_days,
+      easeFactor: srs.ease_factor,
+      nextReview: srs.next_review,
     });
   }
 
@@ -217,7 +217,7 @@ export class CardService {
   private calculateSrs(prev: any | null, quality: number) {
     let repetitions = prev?.repetitions ?? 0;
     let interval = prev?.interval_days ?? 0;
-    let ease = prev?.ease_factor ?? 2.5;
+    let ease = Number(prev?.ease_factor || 2.5);
 
     if (quality < 3) {
       repetitions = 0;
@@ -225,17 +225,27 @@ export class CardService {
     } else {
       repetitions += 1;
 
-      if (repetitions === 1) interval = 1;
-      else if (repetitions === 2) interval = 6;
-      else interval = Math.round(interval * ease);
+      if (repetitions === 1) {
+        interval = 1;
+      } else if (repetitions === 2) {
+        interval = 3;
+      } else {
+        interval = Math.round(interval * ease);
+      }
 
-      ease = Math.max(1.3, ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02)));
+      ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+      ease = Math.max(1.3, ease);
     }
 
     const nextReview = new Date();
     nextReview.setDate(nextReview.getDate() + interval);
 
-    return { repetitions, interval, ease, nextReview };
+    return {
+      repetitions,
+      interval_days: interval,
+      ease_factor: Number(ease.toFixed(2)),
+      next_review: nextReview,
+    };
   }
 }
 

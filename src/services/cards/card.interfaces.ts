@@ -22,4 +22,11 @@ export interface GetDeskDetailsResult {
     cards_per_session: number;
     card_orientation: CARD_ORIENTATION;
   };
+  stats: {
+    total_cards: number;
+    new_cards: number;
+    due_today: number;
+    mastered_cards: number;
+    avg_ease_factor: number;
+  };
 }

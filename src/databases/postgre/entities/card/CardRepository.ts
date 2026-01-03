@@ -56,11 +56,11 @@ export class CardRepository extends Table {
     );
   }
 
-  async getDeskDetails(params: { sub: string }) {
+  async getDeskDetails(params: { deskSub: string; userSub: string }) {
     const query: Query = {
       name: 'getDeskDetails',
       text: GET_DESK_DETAILS,
-      values: [params.sub],
+      values: [params.deskSub, params.userSub],
     };
 
     return this.getItem<GetDeskDetailsResult>(query);
