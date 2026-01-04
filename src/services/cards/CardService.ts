@@ -13,6 +13,9 @@ import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT } from './card.const';
 import { GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 import * as cheerio from 'cheerio';
+import { GoogleGenAI } from '@google/genai';
+
+const ai = new GoogleGenAI({ apiKey: 'AIzaSyBzQEKdS4V9QhL4ZFBbj2ZhavYINI9ZSAQ' });
 
 interface ExamplePair {
   source: string;
