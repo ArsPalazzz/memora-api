@@ -1240,30 +1240,32 @@ Format: Return each sentence on a new line without numbers or bullets.`;
       // const data = await response.json();
       // console.log('data');
       // console.log(data);
-      // if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-      //   const text = data.candidates[0].content.parts[0].text;
+      if (response.candidates && response.candidates[0] && response.candidates[0].content) {
+        const text = response.candidates[0].content.parts?.[0].text;
+        if (!text) return [];
 
-      //   // Парсим ответ
-      //   const examples = text
-      //     .split('\n')
-      //     .map((line: string) => line.trim())
-      //     .filter((line: string) => {
-      //       // Фильтруем только подходящие предложения
-      //       return (
-      //         line.length > 10 &&
-      //         line.length < 200 &&
-      //         line.toLowerCase().includes(word.toLowerCase()) &&
-      //         !line.startsWith('Here') &&
-      //         !line.startsWith('Sure') &&
-      //         !line.includes('*') &&
-      //         !line.match(/^\d+\./)
-      //       );
-      //     })
-      //     .slice(0, 10);
-
-      //   console.log(`✅ Gemini сгенерировал ${examples.length} примеров`);
-      //   return examples;
-      // }
+        // Парсим ответ
+        const examples = text
+          .split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => {
+            // Фильтруем только подходящие предложения
+            return (
+              line.length > 10 &&
+              line.length < 200 &&
+              line.toLowerCase().includes(word.toLowerCase()) &&
+              !line.startsWith('Here') &&
+              !line.startsWith('Sure') &&
+              !line.includes('*') &&
+              !line.match(/^\d+\./)
+            );
+          })
+          .slice(0, 10);
+        console.log('Examples');
+        console.log(examples);
+        console.log(`✅ Gemini сгенерировал ${examples.length} примеров`);
+        return examples;
+      }
 
       return [];
     } catch (error) {
