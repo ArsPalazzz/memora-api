@@ -101,10 +101,19 @@ export const GET_DESK_DETAILS = `
       ucs.interval_days,
       ucs.ease_factor,
       ucs.next_review,
-      ucs.last_review
+      ucs.last_review,
+      COALESCE(
+        json_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.sentence IS NOT NULL),
+        '[]'::json
+      ) as examples
     FROM cards.card c
     LEFT JOIN cards.user_card_srs ucs ON ucs.card_sub = c.sub AND ucs.user_sub = $2
+    LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
     WHERE c.desk_sub = $1
+    GROUP BY 
+      c.sub, c.front_variants, c.back_variants, c.created_at,
+      ucs.repetitions, ucs.interval_days, ucs.ease_factor, 
+      ucs.next_review, ucs.last_review
   ),
   stats_calculation AS (
     SELECT 
@@ -112,7 +121,7 @@ export const GET_DESK_DETAILS = `
       COUNT(CASE WHEN repetitions = 0 OR repetitions IS NULL THEN 1 END) as new_cards,
       COUNT(CASE WHEN next_review <= NOW() THEN 1 END) as due_today,
       COUNT(CASE WHEN interval_days > 30 THEN 1 END) as mastered_cards,
-      AVG(COALESCE(ease_factor, 2.5)) as avg_ease_factor
+      COALESCE(AVG(COALESCE(ease_factor, 2.5)), 0) as avg_ease_factor
     FROM desk_cards
   )
   SELECT 
@@ -130,7 +139,8 @@ export const GET_DESK_DETAILS = `
           'sub', dc.sub,
           'front_variants', dc.front_variants,
           'back_variants', dc.back_variants,
-          'created_at', dc.created_at
+          'created_at', dc.created_at,
+          'examples', dc.examples
         )
         ORDER BY dc.created_at DESC
       ) FILTER (WHERE dc.sub IS NOT NULL), '[]'

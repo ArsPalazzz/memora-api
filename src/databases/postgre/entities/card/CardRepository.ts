@@ -78,7 +78,7 @@ export class CardRepository extends Table {
       ],
     };
 
-    return this.insertItem<number>(query);
+    return this.insertItem<string>(query, 'sub');
   }
 
   async existCard(params: { id: number }) {

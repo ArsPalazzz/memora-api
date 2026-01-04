@@ -79,8 +79,8 @@ export async function createCardCtr(req: Request, res: Response, next: NextFunct
 
     await userService.existProfile({ sub: creatorSub });
 
-    const card = await cardService.createCard(payload);
-    res.json(card);
+    await cardService.createCard(payload);
+    res.sendStatus(204);
   } catch (e) {
     next(e);
   }
