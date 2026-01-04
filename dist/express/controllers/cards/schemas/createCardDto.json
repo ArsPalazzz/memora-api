@@ -1,0 +1,21 @@
+{
+    "type": "object",
+    "required": ["desk_sub", "front", "back"],
+    "additionalProperties": false,
+    "properties": {
+        "desk_sub": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "front": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+        },
+        "back": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "minItems": 1
+        }
+    }
+}

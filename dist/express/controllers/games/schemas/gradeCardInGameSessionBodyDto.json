@@ -1,0 +1,16 @@
+{
+    "type": "object",
+    "required": ["sessionId", "quality"],
+    "additionalProperties": false,
+    "properties": {
+        "sessionId": {
+            "format": "uuid",
+            "type": "string"
+        },
+        "quality": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+        }
+    }
+}

@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.games = void 0;
+const express_1 = require("express");
+const middlewares_1 = require("../middlewares");
+const gameCtr_1 = require("../controllers/games/gameCtr");
+const games = (0, express_1.Router)();
+exports.games = games;
+games.post('/games/start-desk-session', middlewares_1.tokenValidator, gameCtr_1.startDeskSessionCtr);
+games.post('/games/answer', middlewares_1.tokenValidator, gameCtr_1.answerInGameSessionCtr);
+games.post('/games/grade', middlewares_1.tokenValidator, gameCtr_1.gradeCardInGameSessionCtr);
+games.get('/games/next-card', middlewares_1.tokenValidator, gameCtr_1.getNextCardCtr);
+games.post('/games/finish', middlewares_1.tokenValidator, gameCtr_1.finishGameSessionCtr);
