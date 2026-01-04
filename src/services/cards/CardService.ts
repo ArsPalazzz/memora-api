@@ -13,9 +13,6 @@ import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT } from './card.const';
 import { GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 import * as cheerio from 'cheerio';
-import { GoogleGenAI } from '@google/genai';
-
-const ai = new GoogleGenAI({ apiKey: 'AIzaSyBzQEKdS4V9QhL4ZFBbj2ZhavYINI9ZSAQ' });
 
 interface ExamplePair {
   source: string;
@@ -301,7 +298,7 @@ export class CardService {
       const tatoebaTo = targetLang === 'en' ? 'eng' : 'rus';
 
       // 1. Основной запрос к Tatoeba
-      const examples = await this.generateExamplesWithDeepSeek(sourceWord);
+      const examples = await this.generateExamplesWithGemini(sourceWord);
 
       if (examples.length > 0) {
         console.log(`✅ Found ${examples.length} examples from Tatoeba`);
@@ -1182,199 +1179,95 @@ export class CardService {
   //     return [];
   //   }
   // }
-  //   private async generateExamplesWithGemini(word: string): Promise<string[]> {
-  //     try {
-  //       console.log('start');
-  //       const apiKey = 'AIzaSyBzQEKdS4V9QhL4ZFBbj2ZhavYINI9ZSAQ'; // Сохрани ключ в .env
-
-  //       const prompt = `Generate 8-10 diverse example sentences for the word "${word}".
-
-  // Requirements:
-  // 1. Sentences must naturally contain the word "${word}"
-  // 2. Show different meanings/contexts if the word has multiple meanings
-  // 3. Sentences should be 8-25 words each
-  // 4. Use modern, natural English
-  // 5. Include both simple and complex sentence structures
-  // 6. Ensure sentences are grammatically correct
-  // 7. Cover different tenses and grammatical forms
-  // 8. Make sentences interesting and informative
-
-  // Format: Return each sentence on a new line without numbers or bullets.`;
-
-  // const response2 = await fetch(
-  //   `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-  // );
-
-  // const data2 = await response2.json();
-  // const models = data2.models?.map((m: any) => m.name) || [];
-  // console.log('📋 Доступные модели:', models);
-
-  // const response = await fetch(
-  //   `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
-  //   {
-  //     method: 'POST',
-  //     headers: {
-  //       'Content-Type': 'application/json',
-  //     },
-  //     body: JSON.stringify({
-  //       contents: [
-  //         {
-  //           parts: [{ text: prompt }],
-  //         },
-  //       ],
-  //       generationConfig: {
-  //         temperature: 0.8,
-  //         maxOutputTokens: 800,
-  //         topP: 0.9,
-  //         topK: 40,
-  //       },
-  //     }),
-  //   }
-  // );
-  // const response = await ai.models.generateContent({
-  //   model: 'gemini-2.5-flash',
-  //   contents: prompt,
-  // });
-  // console.log('response');
-  // console.log(response);
-  // const data = await response.json();
-  // console.log('data');
-  // console.log(data);
-  // if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-  //   const text = data.candidates[0].content.parts[0].text;
-
-  //   // Парсим ответ
-  //   const examples = text
-  //     .split('\n')
-  //     .map((line: string) => line.trim())
-  //     .filter((line: string) => {
-  //       // Фильтруем только подходящие предложения
-  //       return (
-  //         line.length > 10 &&
-  //         line.length < 200 &&
-  //         line.toLowerCase().includes(word.toLowerCase()) &&
-  //         !line.startsWith('Here') &&
-  //         !line.startsWith('Sure') &&
-  //         !line.includes('*') &&
-  //         !line.match(/^\d+\./)
-  //       );
-  //     })
-  //     .slice(0, 10);
-
-  //   console.log(`✅ Gemini сгенерировал ${examples.length} примеров`);
-  //   return examples;
-  // }
-
-  //     return [];
-  //   } catch (error) {
-  //     console.error('❌ Gemini API error:', error);
-  //     //return this.generateFallbackExamples(word);
-  //     return [];
-  //   }
-  // }
-  private async generateExamplesWithDeepSeek(word: string): Promise<string[]> {
+  private async generateExamplesWithGemini(word: string): Promise<string[]> {
     try {
-      const apiKey = process.env.DEEPSEEK_API_KEY;
-      const apiUrl = 'https://api.deepseek.com/chat/completions';
+      console.log('start');
+      const apiKey = 'AIzaSyBzQEKdS4V9QhL4ZFBbj2ZhavYINI9ZSAQ'; // Сохрани ключ в .env
 
-      const prompt = `Generate 8-10 diverse example sentences for the English word "${word}".
+      const prompt = `Generate 8-10 diverse example sentences for the word "${word}".
 
 Requirements:
-1. Each sentence must naturally contain the word "${word}"
-2. Show different contexts and grammatical structures
+1. Sentences must naturally contain the word "${word}"
+2. Show different meanings/contexts if the word has multiple meanings
 3. Sentences should be 8-25 words each
 4. Use modern, natural English
-5. Return ONLY the sentences, one per line, without any explanations, numbers, or additional text
+5. Include both simple and complex sentence structures
+6. Ensure sentences are grammatically correct
+7. Cover different tenses and grammatical forms
+8. Make sentences interesting and informative
 
-Example format for word "happiness":
-Happiness often comes from helping others.
-Finding happiness in small things can improve your daily life.
-Her face lit up with pure happiness when she saw the surprise.
-Many people search for happiness their entire lives.
-True happiness is often found in meaningful relationships.`;
+Format: Return each sentence on a new line without numbers or bullets.`;
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You are a helpful English language tutor. Generate clear, natural example sentences.',
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-          max_tokens: 500,
-          temperature: 0.7,
-          stream: false,
-        }),
+      // const response2 = await fetch(
+      //   `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+      // );
+
+      // const data2 = await response2.json();
+      // const models = data2.models?.map((m: any) => m.name) || [];
+      // console.log('📋 Доступные модели:', models);
+
+      // const response = await fetch(
+      //   `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`,
+      //   {
+      //     method: 'POST',
+      //     headers: {
+      //       'Content-Type': 'application/json',
+      //     },
+      //     body: JSON.stringify({
+      //       contents: [
+      //         {
+      //           parts: [{ text: prompt }],
+      //         },
+      //       ],
+      //       generationConfig: {
+      //         temperature: 0.8,
+      //         maxOutputTokens: 800,
+      //         topP: 0.9,
+      //         topK: 40,
+      //       },
+      //     }),
+      //   }
+      // );
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
       });
+      console.log('response');
       console.log(response);
-      if (!response.ok) {
-        const error = await response.text();
-        console.error(`❌ DeepSeek API error ${response.status}:`, error);
-        return [];
-      }
+      // const data = await response.json();
+      // console.log('data');
+      // console.log(data);
+      // if (data.candidates && data.candidates[0] && data.candidates[0].content) {
+      //   const text = data.candidates[0].content.parts[0].text;
 
-      const data = await response.json();
-      console.log(data);
-      if (data.choices && data.choices[0] && data.choices[0].message) {
-        const text = data.choices[0].message.content;
-        return this.parseDeepSeekResponse(text, word);
-      }
+      //   // Парсим ответ
+      //   const examples = text
+      //     .split('\n')
+      //     .map((line: string) => line.trim())
+      //     .filter((line: string) => {
+      //       // Фильтруем только подходящие предложения
+      //       return (
+      //         line.length > 10 &&
+      //         line.length < 200 &&
+      //         line.toLowerCase().includes(word.toLowerCase()) &&
+      //         !line.startsWith('Here') &&
+      //         !line.startsWith('Sure') &&
+      //         !line.includes('*') &&
+      //         !line.match(/^\d+\./)
+      //       );
+      //     })
+      //     .slice(0, 10);
+
+      //   console.log(`✅ Gemini сгенерировал ${examples.length} примеров`);
+      //   return examples;
+      // }
 
       return [];
     } catch (error) {
-      console.error('❌ DeepSeek API exception:', error);
+      console.error('❌ Gemini API error:', error);
+      //return this.generateFallbackExamples(word);
       return [];
     }
-  }
-
-  private parseDeepSeekResponse(text: string, word: string): string[] {
-    const examples = text
-      .split('\n')
-      .map((line) =>
-        line
-          .replace(/^\d+[\.\)]\s*/, '') // Убираем "1. ", "2) "
-          .replace(/^[\-\*•]\s*/, '') // Убираем "- ", "* ", "• "
-          .replace(/^["']|["']$/g, '') // Убираем кавычки
-          .replace(/^Here (are|is)\s+/i, '') // Убираем "Here are..."
-          .replace(/^Examples?:\s*/i, '') // Убираем "Examples:"
-          .trim()
-      )
-      .filter((line) => {
-        const lowerLine = line.toLowerCase();
-        const lowerWord = word.toLowerCase();
-
-        // Проверяем, что это валидное предложение
-        return (
-          line.length > 10 &&
-          line.length < 200 &&
-          lowerLine.includes(lowerWord) &&
-          (line.endsWith('.') || line.endsWith('!') || line.endsWith('?')) &&
-          line.split(' ').length > 4
-        ); // Минимум 5 слов
-      })
-      .slice(0, 10);
-
-    console.log(`✅ DeepSeek: ${examples.length} примеров`);
-
-    // Логируем для отладки
-    if (examples.length > 0) {
-      examples.forEach((ex, i) => {
-        console.log(`  ${i + 1}. ${ex}`);
-      });
-    }
-
-    return examples;
   }
 
   // private detectLanguage(text: string): 'en' | 'ru' | 'other' {
