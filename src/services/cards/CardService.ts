@@ -70,7 +70,7 @@ export class CardService {
     const cardSub = await this.cardRepository.createCard({ sub, ...payload });
     if (!cardSub) throw new Error(`Card not created`);
 
-    this.generateExamples(cardSub, payload.front, payload.back);
+    await this.generateExamples(cardSub, payload.front, payload.back);
   }
 
   async createDesk(payload: {
