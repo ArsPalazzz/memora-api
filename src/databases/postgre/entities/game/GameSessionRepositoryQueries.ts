@@ -2,6 +2,10 @@ export const CREATE_GAME_SESSION = `
   INSERT INTO games.session(id, user_sub, type, mode, desk_sub, status, created_at)
     VALUES($1,$2,'desk','write',$3,'active',NOW())`;
 
+export const CREATE_REVIEW_SESSION = `
+  INSERT INTO games.session(id, user_sub, type, mode, batch_id, status, created_at)
+    VALUES($1,$2,'review','write',$3,'active',NOW())`;
+
 export const HAVE_ACCESS_TO_SESSION = `
   SELECT EXISTS (SELECT 1 FROM games.session WHERE id = $1 AND user_sub = $2);
 `;

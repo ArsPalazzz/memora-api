@@ -12,40 +12,78 @@ export const up = (pgm) => {
   pgm.createSchema('reviews', { ifNotExists: true });
 
   pgm.createTable(
-    { schema: 'reviews', name: 'card_review' },
-    {
-      id: { type: 'bigserial', primaryKey: true },
-      user_sub: { type: 'uuid', notNull: true, references: 'users.profile(sub)' },
-      card_sub: { type: 'uuid', notNull: true, references: 'cards.card(sub)' },
-      repetitions: { type: 'int', notNull: true, default: 0 },
-      interval_days: { type: 'int', notNull: true, default: 0 },
-      ease_factor: { type: 'float', notNull: true, default: 2.5 },
-      next_review_at: { type: 'timestamp', notNull: true },
-      last_reviewed_at: { type: 'timestamp' },
-      created_at: { type: 'timestamp', notNull: true, default: pgm.func('CURRENT_TIMESTAMP') },
-    },
-    {
-      constraints: { unique: ['user_sub', 'card_sub'] },
-    }
-  );
-
-  pgm.createTable(
     { schema: 'reviews', name: 'review_batch' },
     {
       id: { type: 'uuid', primaryKey: true },
-      user_sub: { type: 'uuid', notNull: true, references: 'users.profile(sub)' },
+      user_sub: { type: 'uuid', notNull: true },
       created_at: { type: 'timestamp', notNull: true, default: pgm.func('CURRENT_TIMESTAMP') },
       notified_at: { type: 'timestamp' },
     }
   );
 
+  pgm.addConstraint({ schema: 'reviews', name: 'review_batch' }, 'review_batch_user_sub_fkey', {
+    foreignKeys: {
+      columns: 'user_sub',
+      references: 'users.profile(sub)',
+      onDelete: 'CASCADE',
+    },
+  });
+
   pgm.createTable(
     { schema: 'reviews', name: 'review_batch_card' },
     {
-      batch_id: { type: 'uuid', notNull: true, references: 'reviews.review_batch(id)' },
-      card_sub: { type: 'uuid', notNull: true, references: 'cards.card(sub)' },
+      id: { type: 'bigserial', primaryKey: true },
+      batch_id: { type: 'uuid', notNull: true },
+      card_sub: { type: 'uuid', notNull: true },
+      reviewed_at: { type: 'timestamp' },
+      created_at: {
+        type: 'timestamp',
+        notNull: true,
+        default: pgm.func('CURRENT_TIMESTAMP'),
+      },
+    },
+    {
+      constraints: {
+        unique: ['batch_id', 'card_sub'],
+      },
     }
   );
+
+  pgm.addConstraint(
+    { schema: 'reviews', name: 'review_batch_card' },
+    'review_batch_card_sub_fkey',
+    {
+      foreignKeys: {
+        columns: 'batch_id',
+        references: 'reviews.review_batch(id)',
+        onDelete: 'CASCADE',
+      },
+    }
+  );
+
+  pgm.addConstraint(
+    { schema: 'reviews', name: 'review_batch_card' },
+    'review_batch_card_card_sub_fkey',
+    {
+      foreignKeys: {
+        columns: 'card_sub',
+        references: 'cards.card(sub)',
+        onDelete: 'CASCADE',
+      },
+    }
+  );
+
+  pgm.createIndex({ schema: 'reviews', name: 'review_batch' }, ['user_sub', 'created_at'], {
+    name: 'idx_review_batch_user_created',
+  });
+
+  pgm.createIndex({ schema: 'reviews', name: 'review_batch_card' }, ['batch_id'], {
+    name: 'idx_review_batch_card_batch',
+  });
+
+  pgm.createIndex({ schema: 'reviews', name: 'review_batch_card' }, ['batch_id', 'reviewed_at'], {
+    name: 'idx_review_batch_card_reviewed',
+  });
 };
 
 /**
@@ -54,8 +92,42 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
-  pgm.dropTable({ schema: 'reviews', name: 'review_batch_card' });
-  pgm.dropTable({ schema: 'reviews', name: 'review_batch' });
-  pgm.dropTable({ schema: 'reviews', name: 'card_review' });
-  pgm.dropSchema('reviews');
+  pgm.dropIndex({ schema: 'reviews', name: 'review_batch_card' }, ['batch_id', 'reviewed_at'], {
+    name: 'idx_review_batch_card_reviewed',
+    ifExists: true,
+  });
+
+  pgm.dropIndex({ schema: 'reviews', name: 'review_batch_card' }, ['batch_id'], {
+    name: 'idx_review_batch_card_batch',
+    ifExists: true,
+  });
+
+  pgm.dropIndex({ schema: 'reviews', name: 'review_batch' }, ['user_sub', 'created_at'], {
+    name: 'idx_review_batch_user_created',
+    ifExists: true,
+  });
+
+  pgm.dropConstraint(
+    { schema: 'reviews', name: 'review_batch_card' },
+    'review_batch_card_card_sub_fkey',
+    { ifExists: true }
+  );
+
+  pgm.dropConstraint(
+    { schema: 'reviews', name: 'review_batch_card' },
+    'review_batch_card_sub_fkey',
+    { ifExists: true }
+  );
+
+  pgm.dropConstraint({ schema: 'reviews', name: 'review_batch' }, 'review_batch_user_sub_fkey', {
+    ifExists: true,
+  });
+
+  pgm.dropTable(
+    { schema: 'reviews', name: 'review_batch_card' },
+    { ifExists: true, cascade: true }
+  );
+  pgm.dropTable({ schema: 'reviews', name: 'review_batch' }, { ifExists: true, cascade: true });
+
+  pgm.dropSchema('reviews', { ifExists: true, cascade: true });
 };

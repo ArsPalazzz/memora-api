@@ -162,6 +162,10 @@ export class CardService {
     await this.cardRepository.deleteCard({ cardSub });
   }
 
+  async getUsersWithDueCards() {
+    return await this.userCardSrsRepository.getUsersWithDueCards();
+  }
+
   async archiveDesk(payload: { deskSub: string; creatorSub: string }) {
     const { deskSub, creatorSub } = payload;
     const exist = await this.cardRepository.existDesk({ sub: deskSub });

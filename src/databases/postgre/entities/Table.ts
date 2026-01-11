@@ -35,11 +35,8 @@ export default class Table {
 
   async updateItems(req: Query, client?: PoolClient): Promise<number> {
     const { rowCount } = await this.exec(req, client);
-    if (!rowCount) {
-      throw new DatabaseError('Cannot update items');
-    }
 
-    return rowCount;
+    return rowCount || 0;
   }
 
   async insertItem<R>(

@@ -6,13 +6,15 @@ import gameSessionRepository, {
 } from '../../databases/postgre/entities/game/GameSessionRepository';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
 import cardService, { CardService } from '../cards/CardService';
+import reviewService, { ReviewService } from '../reviews/ReviewService';
 import { v4 as uuidV4 } from 'uuid';
 
 export class GameService {
   constructor(
     public gameSessionRepository: GameSessionRepository,
     public gameSessionCardRepository: GameSessionCardRepository,
-    public cardService: CardService
+    public cardService: CardService,
+    public reviewService: ReviewService
   ) {}
 
   async startGameSession(userSub: string, deskSub: string): Promise<any> {
@@ -38,6 +40,35 @@ export class GameService {
       }
 
       await this.cardService.updateLastTimePlayedDesk(deskSub, tx);
+
+      await tx.commit();
+    } catch (e) {
+      await tx.rollback();
+      throw e;
+    }
+
+    return { sessionId };
+  }
+
+  async startReviewSession(userSub: string, batchId: string): Promise<any> {
+    const batchCards = await this.reviewService.getBatchCardsForUser(batchId, userSub);
+    if (batchCards.length === 0) {
+      throw new Error('No cards in batch or batch already reviewed');
+    }
+
+    const sessionId = uuidV4();
+
+    const tx = await this.gameSessionCardRepository.startTransaction();
+
+    try {
+      await this.gameSessionRepository.createReview(sessionId, userSub, batchId, tx);
+
+      const cardSubs = await this.reviewService.getCardSubsByBatchId(batchId);
+
+      for (const sub of cardSubs) {
+        const direction = this.resolveDirection('normal');
+        await this.gameSessionCardRepository.create(sessionId, sub, direction, tx);
+      }
 
       await tx.commit();
     } catch (e) {
@@ -176,4 +207,9 @@ export class GameService {
   }
 }
 
-export default new GameService(gameSessionRepository, gameSessionCardRepository, cardService);
+export default new GameService(
+  gameSessionRepository,
+  gameSessionCardRepository,
+  cardService,
+  reviewService
+);

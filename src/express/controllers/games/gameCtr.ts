@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 
 import createError from 'http-errors';
 import * as startDeskSessionBodyDtoSchema from './schemas/startDeskSessionBodyDto.json';
+import * as startReviewSessionBodyDtoSchema from './schemas/startReviewSessionBodyDto.json';
 import * as answerInGameSessionBodyDtoSchema from './schemas/answerInGameSessionBodyDto.json';
 import * as gradeCardInGameSessionBodyDtoSchema from './schemas/gradeCardInGameSessionBodyDto.json';
 import * as getNextCardBodyDtoSchema from './schemas/getNextCardBodyDto.json';
@@ -9,6 +10,7 @@ import { ajv } from '../../../utils';
 import gameService from '../../../services/games/GameService';
 
 const validateStartDeskSessionBodyDto = ajv.compile(startDeskSessionBodyDtoSchema);
+const validateStartReviewSessionBodyDto = ajv.compile(startReviewSessionBodyDtoSchema);
 const validateAnswerInGameSessionBodyDto = ajv.compile(answerInGameSessionBodyDtoSchema);
 const validateGradeCardInGameSessionBodyDto = ajv.compile(gradeCardInGameSessionBodyDtoSchema);
 const validateGetNextCardBodyDto = ajv.compile(getNextCardBodyDtoSchema);
@@ -28,6 +30,28 @@ export async function startDeskSessionCtr(req: Request, res: Response, next: Nex
     const { deskSub } = req.body as { deskSub: string };
 
     const { sessionId } = await gameService.startGameSession(userSub, deskSub);
+
+    res.json({ sessionId });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function startReviewSessionCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    if (!validateStartReviewSessionBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect start review session body', {
+          errors: validateStartReviewSessionBodyDto.errors,
+        })
+      );
+    }
+
+    const { batchId } = req.body as { batchId: string };
+
+    const { sessionId } = await gameService.startReviewSession(userSub, batchId);
 
     res.json({ sessionId });
   } catch (e) {

@@ -15,6 +15,7 @@ import { users } from './routers/users';
 import { auth } from './routers/auth';
 import swaggerDocument from './swagger';
 import { games } from './routers/game';
+import { notifications } from './routers/notifications';
 
 export const app = express();
 export const httpServer = http.createServer(app);
@@ -45,6 +46,7 @@ app.use(auth);
 app.use(users);
 app.use(cards);
 app.use(games);
+app.use(notifications);
 
 // Service healthcheck
 app.use(healthCheck);
