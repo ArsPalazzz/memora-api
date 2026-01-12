@@ -137,7 +137,7 @@ export const up = (pgm) => {
       },
 
       repetitions: { type: 'int', notNull: true, default: 0 },
-      interval_days: { type: 'int', notNull: true, default: 0 },
+      interval_minutes: { type: 'int', notNull: true, default: 0 },
       ease_factor: { type: 'numeric(4,2)', notNull: true, default: 2.5 },
 
       next_review: {

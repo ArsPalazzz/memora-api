@@ -98,7 +98,7 @@ export const GET_DESK_DETAILS = `
       c.back_variants,
       c.created_at,
       ucs.repetitions,
-      ucs.interval_days,
+      ucs.interval_minutes,
       ucs.ease_factor,
       ucs.next_review,
       ucs.last_review,
@@ -112,7 +112,7 @@ export const GET_DESK_DETAILS = `
     WHERE c.desk_sub = $1
     GROUP BY 
       c.sub, c.front_variants, c.back_variants, c.created_at,
-      ucs.repetitions, ucs.interval_days, ucs.ease_factor, 
+      ucs.repetitions, ucs.interval_minutes, ucs.ease_factor, 
       ucs.next_review, ucs.last_review
   ),
   stats_calculation AS (
@@ -120,7 +120,7 @@ export const GET_DESK_DETAILS = `
       COUNT(*) as total_cards,
       COUNT(CASE WHEN repetitions = 0 OR repetitions IS NULL THEN 1 END) as new_cards,
       COUNT(CASE WHEN next_review <= NOW() THEN 1 END) as due_today,
-      COUNT(CASE WHEN interval_days > 30 THEN 1 END) as mastered_cards,
+      COUNT(CASE WHEN interval_minutes > 43200 THEN 1 END) as mastered_cards,
       COALESCE(AVG(COALESCE(ease_factor, 2.5)), 0) as avg_ease_factor
     FROM desk_cards
   )

@@ -21,16 +21,16 @@ export class UserCardSrsRepository extends Table {
     userSub: string;
     cardSub: string;
     repetitions: number;
-    intervalDays: number;
+    intervalMinutes: number;
     easeFactor: number;
     nextReview: Date;
   }) {
-    const { userSub, cardSub, repetitions, intervalDays, easeFactor, nextReview } = params;
+    const { userSub, cardSub, repetitions, intervalMinutes, easeFactor, nextReview } = params;
 
     const query: Query = {
       name: 'upsertUserCardSrs',
       text: UPSERT_USER_CARDS_SRS,
-      values: [userSub, cardSub, repetitions, intervalDays, easeFactor, nextReview],
+      values: [userSub, cardSub, repetitions, intervalMinutes, easeFactor, nextReview],
     };
 
     return this.updateItems(query);

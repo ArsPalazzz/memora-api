@@ -9,7 +9,7 @@ INSERT INTO cards.user_card_srs (
         user_sub,
         card_sub,
         repetitions,
-        interval_days,
+        interval_minutes,
         ease_factor,
         last_review,
         next_review
@@ -18,7 +18,7 @@ INSERT INTO cards.user_card_srs (
       ON CONFLICT (user_sub, card_sub)
       DO UPDATE SET
         repetitions = $3,
-        interval_days = $4,
+        interval_minutes = $4,
         ease_factor = $5,
         last_review = NOW(),
         next_review = $6

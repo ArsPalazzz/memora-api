@@ -195,7 +195,7 @@ export class CardService {
       userSub,
       cardSub,
       repetitions: srs.repetitions,
-      intervalDays: srs.interval_days,
+      intervalMinutes: srs.interval_minutes,
       easeFactor: srs.ease_factor,
       nextReview: srs.next_review,
     });
@@ -230,31 +230,35 @@ export class CardService {
 
   private calculateSrs(prev: any | null, quality: number) {
     let repetitions = prev?.repetitions ?? 0;
-    let interval = prev?.interval_days ?? 0;
+    let interval = prev?.interval_minutes ?? 0;
     let ease = Number(prev?.ease_factor || 2.0);
 
     if (quality < 3) {
       repetitions = 0;
-      interval = 0.083;
+      interval = 120;
     } else {
       repetitions += 1;
 
       if (repetitions === 1) {
-        interval = 0.042;
+        interval = 60;
       } else if (repetitions === 2) {
-        interval = 0.083;
+        interval = 120;
       } else if (repetitions === 3) {
-        interval = 0.125;
+        interval = 180;
       } else if (repetitions === 4) {
-        interval = 0.25;
+        interval = 360;
       } else if (repetitions === 5) {
-        interval = 0.5;
+        interval = 720;
       } else if (repetitions === 6) {
-        interval = 1;
+        interval = 1440;
       } else if (repetitions === 7) {
-        interval = 2;
+        interval = 2880;
+      } else if (repetitions === 8) {
+        interval = 4320;
+      } else if (repetitions === 9) {
+        interval = 7200;
       } else {
-        interval = Math.min(interval * 1.2, 14);
+        interval = Math.min(interval * 1.2, 14 * 24 * 60);
       }
 
       if (quality === 5) {
@@ -273,7 +277,7 @@ export class CardService {
 
     return {
       repetitions,
-      interval_days: interval,
+      interval_minutes: interval,
       ease_factor: Number(ease.toFixed(2)),
       next_review: nextReview,
     };
