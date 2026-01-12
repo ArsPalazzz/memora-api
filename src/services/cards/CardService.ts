@@ -273,7 +273,7 @@ export class CardService {
     }
 
     const nextReview = new Date();
-    nextReview.setDate(nextReview.getDate() + interval);
+    nextReview.setMinutes(nextReview.getMinutes() + interval);
 
     return {
       repetitions,
