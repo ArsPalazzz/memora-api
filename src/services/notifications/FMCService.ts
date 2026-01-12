@@ -10,6 +10,8 @@ export class FCMService {
     try {
       const message = {
         token,
+        title,
+        body,
         data: {
           ...data,
           timestamp: Date.now().toString(),
