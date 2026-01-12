@@ -231,24 +231,41 @@ export class CardService {
   private calculateSrs(prev: any | null, quality: number) {
     let repetitions = prev?.repetitions ?? 0;
     let interval = prev?.interval_days ?? 0;
-    let ease = Number(prev?.ease_factor || 2.5);
+    let ease = Number(prev?.ease_factor || 2.0);
 
     if (quality < 3) {
       repetitions = 0;
-      interval = 1;
+      interval = 0.083;
     } else {
       repetitions += 1;
 
       if (repetitions === 1) {
-        interval = 1;
+        interval = 0.042;
       } else if (repetitions === 2) {
-        interval = 3;
+        interval = 0.083;
+      } else if (repetitions === 3) {
+        interval = 0.125;
+      } else if (repetitions === 4) {
+        interval = 0.25;
+      } else if (repetitions === 5) {
+        interval = 0.5;
+      } else if (repetitions === 6) {
+        interval = 1;
+      } else if (repetitions === 7) {
+        interval = 2;
       } else {
-        interval = Math.round(interval * ease);
+        interval = Math.min(interval * 1.2, 14);
       }
 
-      ease = ease + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-      ease = Math.max(1.3, ease);
+      if (quality === 5) {
+        ease += 0.01;
+      } else if (quality === 4) {
+        ease += 0.005;
+      } else if (quality === 3) {
+        ease -= 0.15;
+      }
+
+      ease = Math.max(1.3, Math.min(ease, 2.0));
     }
 
     const nextReview = new Date();
