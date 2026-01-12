@@ -1,0 +1,11 @@
+{
+    "type": "object",
+    "required": ["batchId"],
+    "additionalProperties": false,
+    "properties": {
+        "batchId": {
+            "format": "uuid",
+            "type": "string"
+        }
+    }
+}
