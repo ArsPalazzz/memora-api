@@ -39,7 +39,7 @@ SELECT rbc.card_sub
 FROM reviews.review_batch_card rbc
 JOIN cards.card c
   ON c.sub = rbc.card_sub
-JOIN desks.desk d
+JOIN cards.desk d
   ON d.sub = c.desk_sub
 WHERE rbc.batch_id = $1
   AND d.creator_sub = $2
