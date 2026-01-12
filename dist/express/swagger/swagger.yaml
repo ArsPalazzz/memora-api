@@ -1,0 +1,382 @@
+openapi: 3.0.1
+info:
+  title: Memora API
+  description: Memora openApi 3.0.1 specification
+  version: 1.0.23
+  contact:
+    email: to@mail.io
+servers:
+  - description: Localhost
+    url: http://localhost:3001
+tags:
+  - name: Auth
+    description: Auth domain
+  - name: User
+    description: User domain
+  - name: Card
+    description: Card domain
+  - name: HealthCheck
+    description: HealthCheck routes
+
+paths:
+  /auth/sign-in:
+    post:
+      tags:
+        - Auth
+      summary: Creates a card
+      operationId: authCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: email
+                  example: example@gmail.com
+                password:
+                  type: string
+                  description: password
+                  example: pass123
+
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Creates a card
+      operationId: refreshCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: Creates a card
+      operationId: logoutCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /users/create:
+    post:
+      tags:
+        - User
+      summary: Creates a card
+      operationId: createCardCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  description: email
+                  example: example@gmail.com
+                password:
+                  type: string
+                  description: password
+                  example: pass123
+
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /users/my-profile:
+    get:
+      tags:
+        - User
+      summary: Creates a card
+      operationId: getProfileCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /cards:
+    get:
+      tags:
+        - Card
+      summary: Returns cards
+      operationId: getCardCtr
+      description: |
+        The profile will be provided according to the auth token provided by the user
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Personal user profile
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    front:
+                      type: string
+                    back:
+                      type: string
+                    created_at:
+                      type: string
+
+  /cards/create:
+    post:
+      tags:
+        - Card
+      summary: Creates a card
+      operationId: createCardCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                front:
+                  type: string
+                  description: front text
+                  example: one
+                back:
+                  type: string
+                  description: back text
+                  example: two
+
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /desks/create:
+    post:
+      tags:
+        - Card
+      summary: Creates a desk
+      operationId: createDeskCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: desk title
+                  example: desk title
+                description:
+                  type: string
+                  description: desk description
+                  example: desk description
+
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+  /healthcheck:
+    post:
+      tags:
+        - HealthCheck
+      summary: Creates a friendship connection
+      operationId: postUserFriendshipConnectionCtr
+      description: |
+        Creates a friendship connection between two users by their subs.
+
+        Granted for a user with status: **GUEST**, **REGISTERED**
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connection:
+                    type: string
+                    description: Connection status
+                    example: completed
+
+components:
+  schemas:
+    Credentials:
+      type: object
+      properties:
+        email:
+          type: string
+          description: User email for login
+          example: anonymous1@gmail.com
+          format: email
+        password:
+          type: string
+          minLength: 5
+          description: User password
+          example: anonymous1pass
+      required:
+        - email
+        - password
+
+    Profile:
+      type: object
+      properties:
+        sub:
+          type: string
+          description: User sub
+          example: 39eab26c-8788-4375-810c-9807aaf98191
+          format: uuid
+        nickname:
+          type: string
+          description: User nickname
+          example: Murzilka
+        email:
+          type: string
+          description: User email
+          example: user@mail.com
+        status:
+          type: string
+          description: User profile status
+          example: Lagging like
+        role:
+          type: string
+          enum: [guest, registered]
+        avatar:
+          type: string
+          description: User avatar asset id
+          example: 39eab26c-8788-4375-810c-2307aaf98191
+          format: uuid
+        profile_frame:
+          type: string
+          description: User profile frame asset id
+          example: 39eab26c-8788-4375-810c-2307aaf98191
+          format: uuid
+        premium:
+          type: boolean
+          description: If user has premium
+          example: true
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-03-20T21:00:26.000Z'
+
+  securitySchemes:
+    userLoginBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
