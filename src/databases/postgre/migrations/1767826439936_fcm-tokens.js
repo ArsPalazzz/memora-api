@@ -67,7 +67,10 @@ export const up = (pgm) => {
   `);
 
   pgm.createFunction(
-    'notifications.update_updated_at',
+    {
+      schema: 'notifications',
+      name: 'update_updated_at',
+    },
     [],
     {
       returns: 'trigger',
@@ -84,7 +87,7 @@ export const up = (pgm) => {
   pgm.createTrigger({ schema: 'notifications', name: 'fcm_token' }, 'update_updated_at_trigger', {
     when: 'BEFORE',
     operation: 'UPDATE',
-    function: 'notifications.update_updated_at',
+    function: { schema: 'notifications', name: 'update_updated_at' },
     level: 'ROW',
   });
 };
@@ -99,7 +102,7 @@ export const down = (pgm) => {
     ifExists: true,
   });
 
-  pgm.dropFunction('notifications.update_updated_at', [], { ifExists: true });
+  pgm.dropFunction({ schema: 'notifications', name: 'update_updated_at' }, [], { ifExists: true });
 
   pgm.dropIndex({ schema: 'notifications', name: 'fcm_token' }, 'idx_fcm_token_token', {
     ifExists: true,
