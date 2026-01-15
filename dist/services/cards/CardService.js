@@ -212,7 +212,7 @@ class CardService {
             ease = Math.max(1.3, Math.min(ease, 2.0));
         }
         const nextReview = new Date();
-        nextReview.setDate(nextReview.getDate() + interval);
+        nextReview.setMinutes(nextReview.getMinutes() + interval);
         return {
             repetitions,
             interval_minutes: interval,
@@ -276,8 +276,6 @@ class CardService {
                 model: 'gemini-2.5-flash',
                 contents: prompt,
             });
-            console.log('response');
-            console.log(response);
             if (response.candidates?.[0]?.content?.parts?.[0]?.text) {
                 const text = response.candidates[0].content.parts[0].text;
                 return this.parseExamplesResponse(text, words);

@@ -8,3 +8,4 @@ const users = (0, express_1.Router)();
 exports.users = users;
 users.post('/users/create', userCtr_1.createUserCtr);
 users.get('/users/my-profile', middlewares_1.tokenValidator, userCtr_1.getMyProfileCtr);
+users.get('/users/daily', middlewares_1.tokenValidator, userCtr_1.getDailyCtr);

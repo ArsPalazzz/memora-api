@@ -62,7 +62,59 @@ exports.GET_CARD_SUBS_FOR_PLAY = `
     LIMIT $2
 `;
 exports.GET_DESKS_BY_CREATOR_SUB = `
-  SELECT sub, title, description, created_at FROM cards.desk WHERE creator_sub = $1 ORDER BY created_at DESC;
+  SELECT
+  d.sub,
+  d.title,
+  d.description,
+
+  COUNT(DISTINCT c.sub) AS "totalCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.repetitions IS NULL OR ucs.repetitions = 0
+      THEN c.sub
+    END
+  ) AS "newCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.next_review <= NOW()
+      THEN c.sub
+    END
+  ) AS "dueCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.repetitions > 0
+           AND (ucs.next_review > NOW() OR ucs.next_review IS NULL)
+           AND ucs.interval_minutes <= 43200
+      THEN c.sub
+    END
+  ) AS "learningCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.interval_minutes > 43200
+      THEN c.sub
+    END
+  ) AS "masteredCards" -- FIX
+
+FROM cards.desk d
+LEFT JOIN cards.card c
+  ON c.desk_sub = d.sub
+LEFT JOIN cards.user_card_srs ucs
+  ON ucs.card_sub = c.sub
+ AND ucs.user_sub = $1
+
+WHERE d.creator_sub = $1
+
+GROUP BY
+  d.sub,
+  d.title,
+  d.description,
+  d.created_at
+
+ORDER BY d.created_at DESC;
 `;
 exports.GET_DESK_DETAILS = `
    WITH desk_data AS (

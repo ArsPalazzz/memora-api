@@ -38,6 +38,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createUserCtr = createUserCtr;
 exports.getMyProfileCtr = getMyProfileCtr;
+exports.getDailyCtr = getDailyCtr;
 const UserService_1 = __importDefault(require("../../../services/users/UserService"));
 const utils_1 = require("../../../utils");
 const http_errors_1 = __importDefault(require("http-errors"));
@@ -67,6 +68,15 @@ async function getMyProfileCtr(req, res, next) {
     try {
         const profile = await UserService_1.default.getProfile({ sub: res.locals.userSub });
         res.json(profile);
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function getDailyCtr(req, res, next) {
+    try {
+        const daily = await UserService_1.default.getDaily({ sub: res.locals.userSub });
+        res.json(daily);
     }
     catch (e) {
         next(e);

@@ -10,12 +10,14 @@ const exceptions_1 = require("../../exceptions");
 const CardService_1 = __importDefault(require("../cards/CardService"));
 const ReviewService_1 = __importDefault(require("../reviews/ReviewService"));
 const uuid_1 = require("uuid");
+const UserService_1 = __importDefault(require("../users/UserService"));
 class GameService {
-    constructor(gameSessionRepository, gameSessionCardRepository, cardService, reviewService) {
+    constructor(gameSessionRepository, gameSessionCardRepository, cardService, reviewService, userService) {
         this.gameSessionRepository = gameSessionRepository;
         this.gameSessionCardRepository = gameSessionCardRepository;
         this.cardService = cardService;
         this.reviewService = reviewService;
+        this.userService = userService;
     }
     async startGameSession(userSub, deskSub) {
         const sessionId = (0, uuid_1.v4)();
@@ -108,6 +110,10 @@ class GameService {
             answer,
             isCorrect,
         });
+        if (isCorrect) {
+            const userId = await this.userService.getProfileId(userSub);
+            await this.userService.addCardInDaily(userId);
+        }
         const hasMore = await this.gameSessionRepository.hasUnansweredCards(sessionId);
         if (!hasMore) {
             await this.gameSessionRepository.finish(sessionId);
@@ -159,4 +165,4 @@ class GameService {
     }
 }
 exports.GameService = GameService;
-exports.default = new GameService(GameSessionRepository_1.default, GameSessionCardRepository_1.default, CardService_1.default, ReviewService_1.default);
+exports.default = new GameService(GameSessionRepository_1.default, GameSessionCardRepository_1.default, CardService_1.default, ReviewService_1.default, UserService_1.default);

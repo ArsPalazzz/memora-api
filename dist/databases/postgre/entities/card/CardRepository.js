@@ -29,7 +29,15 @@ class CardRepository extends Table_1.default {
             text: CardRepositoryQueries_1.GET_DESKS_BY_CREATOR_SUB,
             values: [userSub],
         };
-        return this.getItems(query);
+        const result = await this.getItems(query);
+        return result.map((item) => ({
+            ...item,
+            totalCards: parseInt(item.totalCards, 10) || 0,
+            newCards: parseInt(item.newCards, 10) || 0,
+            dueCards: parseInt(item.dueCards, 10) || 0,
+            learningCards: parseInt(item.learningCards, 10) || 0,
+            masteredCards: parseInt(item.masteredCards, 10) || 0,
+        }));
     }
     async getDeskDetails(params) {
         const query = {

@@ -8,16 +8,27 @@ const express_1 = require("./express");
 const postgre_1 = __importDefault(require("./databases/postgre"));
 const config_1 = require("./config");
 const NotificationScheduler_1 = __importDefault(require("./schedule/NotificationScheduler"));
-let scheduler = null;
+const StreakScheduler_1 = __importDefault(require("./schedule/StreakScheduler"));
+let notificationScheduler = null;
+let streakScheduler = null;
 const shutdown = async () => {
     logger_1.default.info(`⚠️ Gracefully shutting down`);
-    if (scheduler) {
+    if (notificationScheduler) {
         try {
-            await scheduler.stop();
+            await notificationScheduler.stop();
             logger_1.default.info('🛑 Notification scheduler stopped');
         }
         catch (error) {
             logger_1.default.error('❌ Error stopping notification scheduler:', error);
+        }
+    }
+    if (streakScheduler) {
+        try {
+            await streakScheduler.stop();
+            logger_1.default.info('🛑 Streak scheduler stopped');
+        }
+        catch (error) {
+            logger_1.default.error('❌ Error stopping streak scheduler:', error);
         }
     }
     express_1.httpServer.close(async () => {
@@ -33,10 +44,16 @@ const startServer = async () => {
             .listen(config_1.port, '0.0.0.0', () => logger_1.default.info(`🚀 :: ${config_1.serviceName} is running on port :: ${config_1.port}`))
             .on('error', logger_1.default.error);
         try {
-            scheduler = new NotificationScheduler_1.default(logger_1.default);
+            notificationScheduler = new NotificationScheduler_1.default(logger_1.default);
         }
         catch (error) {
             logger_1.default.error('Failed to start notification scheduler:', error);
+        }
+        try {
+            streakScheduler = new StreakScheduler_1.default(logger_1.default);
+        }
+        catch (error) {
+            logger_1.default.error('Failed to start streak scheduler:', error);
         }
     }
     catch (err) {

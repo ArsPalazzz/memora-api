@@ -14,7 +14,7 @@ class UserRepository extends Table_1.default {
             text: UserRepositoryQueries_1.INSERT_USER,
             values: [sub, nickname, email, role, passwordHash],
         };
-        return this.insertItem(query);
+        return this.insertItem(query, 'id');
     }
     async existByEmail(email) {
         const query = {
@@ -36,6 +36,14 @@ class UserRepository extends Table_1.default {
         const query = {
             name: 'getProfileBySub',
             text: `SELECT sub, nickname, email, created_at FROM users.profile WHERE sub = $1 LIMIT 1;`,
+            values: [sub],
+        };
+        return this.getItem(query);
+    }
+    async getProfileIdBySub(sub) {
+        const query = {
+            name: 'getProfileIdBySub',
+            text: `SELECT id FROM users.profile WHERE sub = $1 LIMIT 1;`,
             values: [sub],
         };
         return this.getItem(query);
