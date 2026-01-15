@@ -8,13 +8,15 @@ import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions
 import cardService, { CardService } from '../cards/CardService';
 import reviewService, { ReviewService } from '../reviews/ReviewService';
 import { v4 as uuidV4 } from 'uuid';
+import userService, { UserService } from '../users/UserService';
 
 export class GameService {
   constructor(
     public gameSessionRepository: GameSessionRepository,
     public gameSessionCardRepository: GameSessionCardRepository,
     public cardService: CardService,
-    public reviewService: ReviewService
+    public reviewService: ReviewService,
+    public userService: UserService
   ) {}
 
   async startGameSession(userSub: string, deskSub: string): Promise<any> {
@@ -145,6 +147,11 @@ export class GameService {
       isCorrect,
     });
 
+    if (isCorrect) {
+      const userId = await this.userService.getProfileId(userSub);
+      await this.userService.addCardInDaily(userId);
+    }
+
     const hasMore = await this.gameSessionRepository.hasUnansweredCards(sessionId);
     if (!hasMore) {
       await this.gameSessionRepository.finish(sessionId);
@@ -211,5 +218,6 @@ export default new GameService(
   gameSessionRepository,
   gameSessionCardRepository,
   cardService,
-  reviewService
+  reviewService,
+  userService
 );

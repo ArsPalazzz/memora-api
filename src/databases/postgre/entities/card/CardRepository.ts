@@ -51,9 +51,25 @@ export class CardRepository extends Table {
       values: [userSub],
     };
 
-    return this.getItems<{ sub: string; title: string; description: string; created_at: string }>(
-      query
-    );
+    const result = await this.getItems<{
+      sub: string;
+      title: string;
+      description: string;
+      totalCards: string;
+      newCards: string;
+      dueCards: string;
+      learningCards: string;
+      masteredCards: string;
+    }>(query);
+
+    return result.map((item) => ({
+      ...item,
+      totalCards: parseInt(item.totalCards, 10) || 0,
+      newCards: parseInt(item.newCards, 10) || 0,
+      dueCards: parseInt(item.dueCards, 10) || 0,
+      learningCards: parseInt(item.learningCards, 10) || 0,
+      masteredCards: parseInt(item.masteredCards, 10) || 0,
+    }));
   }
 
   async getDeskDetails(params: { deskSub: string; userSub: string }) {

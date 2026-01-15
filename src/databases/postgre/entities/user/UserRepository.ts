@@ -3,6 +3,7 @@ import {
   CreateUserParams,
   GetInfoByEmailRes,
   GetProfileBySubRes,
+  GetProfileIdBySubRes,
 } from '../../../../services/users/user.interfaces';
 import Table from '../Table';
 import { INSERT_USER } from './UserRepositoryQueries';
@@ -17,7 +18,7 @@ export class UserRepository extends Table {
       values: [sub, nickname, email, role, passwordHash],
     };
 
-    return this.insertItem<number>(query);
+    return this.insertItem<number>(query, 'id');
   }
 
   async existByEmail(email: string) {
@@ -48,6 +49,16 @@ export class UserRepository extends Table {
     };
 
     return this.getItem<GetProfileBySubRes>(query);
+  }
+
+  async getProfileIdBySub(sub: string) {
+    const query: Query = {
+      name: 'getProfileIdBySub',
+      text: `SELECT id FROM users.profile WHERE sub = $1 LIMIT 1;`,
+      values: [sub],
+    };
+
+    return this.getItem<GetProfileIdBySubRes>(query);
   }
 
   async getInfoByEmail(email: string) {

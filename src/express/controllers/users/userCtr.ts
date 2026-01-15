@@ -40,3 +40,12 @@ export async function getMyProfileCtr(req: Request, res: Response, next: NextFun
     next(e);
   }
 }
+
+export async function getDailyCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const daily = await userService.getDaily({ sub: res.locals.userSub as string });
+    res.json(daily);
+  } catch (e: unknown) {
+    next(e);
+  }
+}

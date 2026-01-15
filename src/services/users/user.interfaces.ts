@@ -1,3 +1,11 @@
+export interface CreateStreakStatsParams {
+  userId: number;
+}
+
+export interface ExistDailyStatsByUserIdParams {
+  userId: number;
+}
+
 export interface CreateUserParams {
   sub: string;
   nickname: string;
@@ -18,6 +26,10 @@ export interface GetProfileBySubRes {
   created_at: string;
 }
 
+export interface GetProfileIdBySubRes {
+  id: number;
+}
+
 export type GetInfoByEmailRes = {
   id: number;
   sub: string;
@@ -26,6 +38,10 @@ export type GetInfoByEmailRes = {
 };
 
 export interface GetProfilePayload {
+  sub: string;
+}
+
+export interface GetDailyPayload {
   sub: string;
 }
 

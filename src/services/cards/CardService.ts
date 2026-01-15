@@ -344,8 +344,6 @@ export class CardService {
         model: 'gemini-2.5-flash',
         contents: prompt,
       });
-      console.log('response');
-      console.log(response);
 
       if (response.candidates?.[0]?.content?.parts?.[0]?.text) {
         const text = response.candidates[0].content.parts[0].text;
