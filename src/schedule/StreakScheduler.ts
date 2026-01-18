@@ -2,6 +2,7 @@ import cron, { ScheduledTask } from 'node-cron';
 import winston from 'winston';
 import streakStatsRepository from '../databases/postgre/entities/user/StreakStatsRepository';
 import dailyStatsRepository from '../databases/postgre/entities/user/DailyStatsRepository';
+import userRepository from '../databases/postgre/entities/user/UserRepository';
 
 class StreakScheduler {
   private scheduledTask: ScheduledTask | null = null;
@@ -33,15 +34,13 @@ class StreakScheduler {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-      const usersWithActivity = await dailyStatsRepository.getUsersWithActivityOnDate(yesterdayStr);
+      const allUserIds = await userRepository.getAllUserIds();
 
-      this.logger.info(`Found ${usersWithActivity.length} users with activity yesterday`);
-
-      for (const user of usersWithActivity) {
+      for (const userId of allUserIds) {
         try {
-          await this.updateUserStreak(user.user_id, yesterdayStr);
+          await this.updateUserStreak(userId, yesterdayStr);
         } catch (userError) {
-          this.logger.error(`Error updating streak for user ${user.user_id}:`, userError);
+          this.logger.error(`Error updating streak for user ${userId}:`, userError);
         }
       }
 
@@ -51,33 +50,24 @@ class StreakScheduler {
     }
   }
 
-  private async updateUserStreak(userId: number, dateStr: string) {
+  private async updateUserStreak(userId: number, yesterdayStr: string) {
     const streakData = await streakStatsRepository.getByUserId(userId);
+    if (!streakData) return;
 
-    if (!streakData) {
+    const yesterdayStats = await dailyStatsRepository.getStatsForDate(userId, yesterdayStr);
+
+    if (!yesterdayStats) {
+      await streakStatsRepository.resetStreak(userId);
+      this.logger.debug(`Reset streak for user ${userId} (didn't study yesterday)`);
       return;
     }
 
-    const lastStudyDate = await dailyStatsRepository.getLastStudyDate(userId);
-    const yesterday = new Date(dateStr);
-
-    if (lastStudyDate) {
-      const dayDiff = Math.floor(
-        (yesterday.getTime() - lastStudyDate.getTime()) / (1000 * 3600 * 24)
-      );
-
-      if (dayDiff === 1) {
-        await streakStatsRepository.incrementStreak(userId);
-        this.logger.debug(
-          `Increased streak for user ${userId} to ${streakData.current_streak + 1}`
-        );
-      } else if (dayDiff > 1) {
-        await streakStatsRepository.resetStreak(userId);
-        this.logger.debug(`Reset streak for user ${userId} (gap: ${dayDiff} days)`);
-      }
+    if (yesterdayStats.goal_achieved) {
+      await streakStatsRepository.incrementStreak(userId);
+      this.logger.debug(`Increased streak for user ${userId} to ${streakData.current_streak + 1}`);
     } else {
       await streakStatsRepository.resetStreak(userId);
-      this.logger.debug(`Set first streak for user ${userId}`);
+      this.logger.debug(`Reset streak for user ${userId} (didn't complete goal)`);
     }
   }
 }

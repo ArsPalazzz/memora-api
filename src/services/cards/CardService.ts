@@ -16,6 +16,9 @@ import { GoogleGenAI } from '@google/genai';
 import cardExampleRepository, {
   CardExampleRepository,
 } from '../../databases/postgre/entities/card/CardExampleRepository';
+import gameSessionRepository, {
+  GameSessionRepository,
+} from '../../databases/postgre/entities/game/GameSessionRepository';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -24,7 +27,8 @@ export class CardService {
     private readonly cardRepository: CardRepository,
     private readonly cardExampleRepository: CardExampleRepository,
     private readonly deskSettingsRepository: DeskSettingsRepository,
-    private readonly userCardSrsRepository: UserCardSrsRepository
+    private readonly userCardSrsRepository: UserCardSrsRepository,
+    private readonly gameSessionRepository: GameSessionRepository
   ) {}
 
   async getAllCards(): Promise<any> {
@@ -57,7 +61,15 @@ export class CardService {
       );
     }
 
-    return await this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub });
+    const deskInfo = await this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub });
+    if (!deskInfo) return;
+
+    const { stats, ...rest } = deskInfo;
+
+    const weeklyStats = await this.gameSessionRepository.getWeeklyDeskStats(sub, desk_sub);
+    if (!weeklyStats) return;
+
+    return { ...rest, stats: { ...stats, weeklyStats } };
   }
 
   async createCard(payload: { front: string[]; back: string[]; desk_sub: string }) {
@@ -391,5 +403,6 @@ export default new CardService(
   cardRepository,
   cardExampleRepository,
   deskSettingsRepository,
-  userCardSrsRepository
+  userCardSrsRepository,
+  gameSessionRepository
 );

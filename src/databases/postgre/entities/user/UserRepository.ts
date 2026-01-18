@@ -70,6 +70,17 @@ export class UserRepository extends Table {
 
     return this.getItem<GetInfoByEmailRes>(query);
   }
+
+  async getAllUserIds() {
+    const query: Query = {
+      name: 'getProfileByEmail',
+      text: `SELECT id FROM users.profile;`,
+      values: [],
+    };
+
+    const res = await this.getItems<{ id: number }>(query);
+    return res.map((item) => item.id);
+  }
 }
 
 export default new UserRepository();

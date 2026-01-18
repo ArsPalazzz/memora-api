@@ -6,11 +6,13 @@ import {
   EXIST_BY_SESSION_ID,
   FINISH_SESSION,
   GET_NEXT_UNANSWERED_CARD,
+  GET_WEEKLY_DESK_STATS,
   HAS_UNANSWERED_CARDS,
   HAVE_ACCESS_TO_SESSION,
   IS_SESSION_ACTIVE,
   SAVE_ANSWER,
 } from './GameSessionRepositoryQueries';
+import { GetWeeklyDeskStats } from '../../../../services/games/game.interfaces';
 
 export class GameSessionRepository extends Table {
   async create(sessionId: string, userSub: string, deskSub: string, tx: PgTransaction) {
@@ -57,6 +59,18 @@ export class GameSessionRepository extends Table {
     };
 
     return this.exists(query);
+  }
+
+  async getWeeklyDeskStats(userSub: string, deskSub: string) {
+    const query: Query = {
+      name: 'getWeeklyDeskStats',
+      text: GET_WEEKLY_DESK_STATS,
+      values: [userSub, deskSub],
+    };
+
+    const res = await this.getItem<GetWeeklyDeskStats>(query);
+
+    return res?.weekly_attempts || undefined;
   }
 
   async finish(sessionId: string) {

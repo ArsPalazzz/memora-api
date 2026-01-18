@@ -121,6 +121,22 @@ export class DailyStatsRepository extends Table {
     const result = await this.getItem<{ last_date: string }>(query);
     return result?.last_date ? new Date(result.last_date) : null;
   }
+
+  async getStatsForDate(userId: number, yesterdayStr: string) {
+    const query: Query = {
+      name: 'getStatsForDate',
+      text: `
+       SELECT goal_achieved
+        FROM users.daily_stats
+        WHERE user_id = $1
+          AND date = $2
+          AND cards_reviewed > 0;
+      `,
+      values: [userId, yesterdayStr],
+    };
+
+    return await this.getItem<{ goal_achieved: boolean }>(query);
+  }
 }
 
 export default new DailyStatsRepository();
