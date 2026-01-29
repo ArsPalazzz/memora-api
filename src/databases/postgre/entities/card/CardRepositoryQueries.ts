@@ -54,6 +54,10 @@ export const ARCHIVE_DESK = `
   UPDATE cards.desk SET status = 'archived' WHERE sub = $1;
 `;
 
+export const RESTORE_DESK = `
+  UPDATE cards.desk SET status = 'active' WHERE sub = $1;
+`;
+
 export const DELETE_CARD = `
   DELETE FROM cards.card WHERE sub = $1;
 `;
@@ -83,6 +87,7 @@ export const GET_DESKS_BY_CREATOR_SUB = `
   d.sub,
   d.title,
   d.description,
+  d.status,
 
   COUNT(DISTINCT c.sub) AS "totalCards", -- FIX
 
@@ -128,6 +133,65 @@ WHERE d.creator_sub = $1
 GROUP BY
   d.sub,
   d.title,
+  d.status,
+  d.description,
+  d.created_at
+
+ORDER BY d.created_at DESC;
+`;
+
+export const GET_ARCHIVED_DESKS_BY_CREATOR_SUB = `
+  SELECT
+  d.sub,
+  d.title,
+  d.description,
+  d.status,
+
+  COUNT(DISTINCT c.sub) AS "totalCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.repetitions IS NULL OR ucs.repetitions = 0
+      THEN c.sub
+    END
+  ) AS "newCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.next_review <= NOW()
+      THEN c.sub
+    END
+  ) AS "dueCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.repetitions > 0
+           AND (ucs.next_review > NOW() OR ucs.next_review IS NULL)
+           AND ucs.interval_minutes <= 43200
+      THEN c.sub
+    END
+  ) AS "learningCards", -- FIX
+
+  COUNT(
+    DISTINCT CASE
+      WHEN ucs.interval_minutes > 43200
+      THEN c.sub
+    END
+  ) AS "masteredCards" -- FIX
+
+FROM cards.desk d
+LEFT JOIN cards.card c
+  ON c.desk_sub = d.sub
+LEFT JOIN cards.user_card_srs ucs
+  ON ucs.card_sub = c.sub
+ AND ucs.user_sub = $1
+
+WHERE d.creator_sub = $1 AND d.status = 'archived'
+
+GROUP BY
+  d.sub,
+  d.title,
+  d.status,
   d.description,
   d.created_at
 
@@ -219,4 +283,25 @@ export const GET_DESK_DETAILS = `
     dd.sub, dd.title, dd.description, dd.created_at, 
     dd.cards_per_session, dd.card_orientation,
     sc.total_cards, sc.new_cards, sc.due_today, sc.mastered_cards, sc.avg_ease_factor;
+`;
+
+export const GET_DESK_CARDS = `
+SELECT 
+    c.sub,
+    c.created_at AS "createdAt",
+    c.front_variants AS "frontVariants",
+    c.back_variants AS "backVariants",
+    COALESCE(
+        array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
+        ARRAY[]::text[]
+    ) AS examples
+FROM cards.card c
+LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
+WHERE c.desk_sub = $1
+GROUP BY 
+    c.sub, 
+    c.created_at, 
+    c.front_variants, 
+    c.back_variants
+ORDER BY c.created_at DESC;
 `;

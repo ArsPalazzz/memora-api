@@ -6,8 +6,10 @@ import {
   EXIST_CARD,
   EXIST_CARD_BY_SUB,
   EXIST_DESK,
+  GET_ARCHIVED_DESKS_BY_CREATOR_SUB,
   GET_CARD_SUBS_FOR_PLAY,
   GET_CARDS,
+  GET_DESK_CARDS,
   GET_DESK_DETAILS,
   GET_DESK_SUBS_BY_CREATOR_SUB,
   GET_DESKS_BY_CREATOR_SUB,
@@ -16,13 +18,17 @@ import {
   INSERT_CARD,
   INSERT_DESK,
   INSERT_DESK_SETTINGS,
+  RESTORE_DESK,
   UPDATE_CARD,
   UPDATE_DESK,
   UPDATE_DESK_SETTINGS,
   UPDATE_FEED_CARD_ORIENTATION,
   UPDATE_LAST_TIME_PLAYED_DESK,
 } from './CardRepositoryQueries';
-import { GetDeskDetailsResult } from '../../../../services/cards/card.interfaces';
+import {
+  GetDeskCardsResult,
+  GetDeskDetailsResult,
+} from '../../../../services/cards/card.interfaces';
 import { CARD_ORIENTATION } from '../../../../services/cards/card.const';
 import { DatabaseError } from '../../../../exceptions';
 
@@ -116,6 +122,38 @@ export class CardRepository extends Table {
     const result = await this.getItems<{
       sub: string;
       title: string;
+      status: string;
+      description: string;
+      totalCards: string;
+      newCards: string;
+      dueCards: string;
+      learningCards: string;
+      masteredCards: string;
+    }>(query);
+
+    return result
+      .filter((item) => item.status === 'active')
+      .map((item) => ({
+        ...item,
+        totalCards: parseInt(item.totalCards, 10) || 0,
+        newCards: parseInt(item.newCards, 10) || 0,
+        dueCards: parseInt(item.dueCards, 10) || 0,
+        learningCards: parseInt(item.learningCards, 10) || 0,
+        masteredCards: parseInt(item.masteredCards, 10) || 0,
+      }));
+  }
+
+  async getArchivedDesksByCreatorSub(userSub: string) {
+    const query: Query = {
+      name: 'getArchivedDesksByCreatorSub',
+      text: GET_ARCHIVED_DESKS_BY_CREATOR_SUB,
+      values: [userSub],
+    };
+
+    const result = await this.getItems<{
+      sub: string;
+      title: string;
+      status: string;
       description: string;
       totalCards: string;
       newCards: string;
@@ -152,6 +190,16 @@ export class CardRepository extends Table {
     };
 
     return this.getItem<GetDeskDetailsResult>(query);
+  }
+
+  async getDeskCards(params: { deskSub: string }) {
+    const query: Query = {
+      name: 'getDeskCards',
+      text: GET_DESK_CARDS,
+      values: [params.deskSub],
+    };
+
+    return this.getItems<GetDeskCardsResult>(query);
   }
 
   async isDeskOwner(userSub: string, deskSub: string) {
@@ -336,6 +384,16 @@ export class CardRepository extends Table {
     const query: Query = {
       name: 'archiveDesk',
       text: ARCHIVE_DESK,
+      values: [params.desk_sub],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async restoreDesk(params: { desk_sub: string }) {
+    const query: Query = {
+      name: 'restoreDesk',
+      text: RESTORE_DESK,
       values: [params.desk_sub],
     };
 

@@ -45,6 +45,17 @@ export async function getDesksCtr(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function getArchivedDesksCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const creatorSub = res.locals.userSub as string;
+
+    const desks = await cardService.getArchivedDesksWithStats(creatorSub);
+    res.json(desks);
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function getDeskSubsCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const creatorSub = res.locals.userSub as string;
@@ -72,6 +83,27 @@ export async function getDeskInfoCtr(req: Request, res: Response, next: NextFunc
 
     const desk = await cardService.getDesk({ sub: creatorSub, desk_sub: params.sub });
     res.json(desk);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getDeskCardsCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateGetDeskInfoDto(params)) {
+      return next(
+        createError(422, 'Incorrect desk params', {
+          errors: validateGetDeskInfoDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    const cards = await cardService.getCardsDesk({ sub: creatorSub, desk_sub: params.sub });
+    res.json(cards);
   } catch (e) {
     next(e);
   }
@@ -279,6 +311,29 @@ export async function archivedDeskCtr(req: Request, res: Response, next: NextFun
 
     await cardService.archiveDesk({ deskSub: params.sub, creatorSub });
     res.json({ archived: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function restoreDeskCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect desk params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    await cardService.restoreDesk({ deskSub: params.sub, creatorSub });
+    res.sendStatus(204);
   } catch (e) {
     next(e);
   }

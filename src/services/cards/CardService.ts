@@ -248,6 +248,21 @@ export class CardService {
     return await this.cardRepository.getDesksByCreatorSub(userSub);
   }
 
+  async getArchivedDesksWithStats(userSub: string): Promise<
+    {
+      totalCards: number;
+      newCards: number;
+      dueCards: number;
+      learningCards: number;
+      masteredCards: number;
+      sub: string;
+      title: string;
+      description: string;
+    }[]
+  > {
+    return await this.cardRepository.getArchivedDesksByCreatorSub(userSub);
+  }
+
   async getUserDeskShort(userSub: string) {
     return await this.cardRepository.getDeskShortByCreatorSub(userSub);
   }
@@ -269,12 +284,30 @@ export class CardService {
     const deskInfo = await this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub });
     if (!deskInfo) return;
 
-    const { stats, ...rest } = deskInfo;
+    const { stats, cards, ...rest } = deskInfo;
+    const limitedCards = cards.slice(0, 20);
 
     const weeklyStats = await this.gameSessionRepository.getWeeklyDeskStats(sub, desk_sub);
     if (!weeklyStats) return;
 
-    return { ...rest, stats: { ...stats, weeklyStats } };
+    return { ...rest, cards: limitedCards, stats: { ...stats, weeklyStats } };
+  }
+
+  async getCardsDesk(payload: GetDeskPayload) {
+    const { desk_sub, sub } = payload;
+    const exist = await this.cardRepository.existDesk({ sub: desk_sub });
+    if (!exist) {
+      throw new NotFoundError(`CardService: desk with sub = ${desk_sub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToDesk({ desk_sub, user_sub: sub });
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `CardService: user with sub = ${sub} doesn't have access to desk with id = ${desk_sub}`
+      );
+    }
+
+    return await this.cardRepository.getDeskCards({ deskSub: desk_sub });
   }
 
   async createCard(payload: { front: string[]; back: string[]; desk_sub: string }) {
@@ -422,6 +455,26 @@ export class CardService {
     }
 
     await this.cardRepository.archiveDesk({ desk_sub: deskSub });
+  }
+
+  async restoreDesk(payload: { deskSub: string; creatorSub: string }) {
+    const { deskSub, creatorSub } = payload;
+    const exist = await this.cardRepository.existDesk({ sub: deskSub });
+    if (!exist) {
+      throw new NotFoundError(`CardService: desk with sub = ${deskSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToDesk({
+      user_sub: creatorSub,
+      desk_sub: deskSub,
+    });
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `CardService: user with sub = ${creatorSub} don't have access to desk with sub = ${deskSub}`
+      );
+    }
+
+    await this.cardRepository.restoreDesk({ desk_sub: deskSub });
   }
 
   async updateSrs(userSub: string, cardSub: string, quality: number) {

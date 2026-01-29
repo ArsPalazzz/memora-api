@@ -220,7 +220,7 @@ export class GameService {
 
     const userPreferences = await this.getUserTopicPreferences(userSub);
 
-    const limit = shownCardSubs.length === 0 ? 2 : 1;
+    const limit = shownCardSubs.length === 0 ? 5 : 1;
 
     const feedSettings = await this.cardService.getFeedSettingsByUserSub(userSub);
 

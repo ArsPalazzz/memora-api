@@ -50,3 +50,11 @@ export interface GetDeskDetailsResult {
     };
   };
 }
+
+export interface GetDeskCardsResult {
+  sub: string;
+  createdAt: string;
+  frontVariants: string[];
+  backVariants: string[];
+  examples: string[];
+}
