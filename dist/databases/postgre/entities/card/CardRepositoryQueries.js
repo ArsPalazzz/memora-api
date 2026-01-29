@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GET_DESK_DETAILS = exports.GET_DESKS_BY_CREATOR_SUB = exports.GET_CARD_SUBS_FOR_PLAY = exports.GET_CARDS = exports.INSERT_DESK_SETTINGS = exports.INSERT_DESK = exports.DELETE_CARD = exports.ARCHIVE_DESK = exports.UPDATE_CARD = exports.UPDATE_DESK = exports.UPDATE_DESK_SETTINGS = exports.HAVE_ACCESS_TO_CARD = exports.HAVE_ACCESS_TO_DESK = exports.UPDATE_LAST_TIME_PLAYED_DESK = exports.EXIST_DESK = exports.EXIST_CARD_BY_SUB = exports.EXIST_CARD = exports.INSERT_CARD = void 0;
+exports.GET_DESK_DETAILS = exports.GET_DESK_SUBS_BY_CREATOR_SUB = exports.GET_DESKS_BY_CREATOR_SUB = exports.GET_CARD_SUBS_FOR_PLAY = exports.GET_CARDS = exports.INSERT_DESK_SETTINGS = exports.INSERT_DESK = exports.DELETE_CARD = exports.ARCHIVE_DESK = exports.UPDATE_CARD = exports.UPDATE_FEED_CARD_ORIENTATION = exports.UPDATE_DESK = exports.UPDATE_DESK_SETTINGS = exports.HAVE_ACCESS_TO_CARD = exports.HAVE_ACCESS_TO_DESK = exports.UPDATE_LAST_TIME_PLAYED_DESK = exports.EXIST_DESK = exports.EXIST_CARD_BY_SUB = exports.EXIST_CARD = exports.INSERT_CARD = void 0;
 exports.INSERT_CARD = `
   INSERT INTO cards.card (desk_sub, front_variants, back_variants, sub) VALUES ($1, $2::jsonb, $3::jsonb, $4) RETURNING *;
 `;
@@ -36,6 +36,9 @@ exports.UPDATE_DESK_SETTINGS = `
 exports.UPDATE_DESK = `
   UPDATE cards.desk SET title = $2, description = $3 WHERE sub = $1;
 `;
+exports.UPDATE_FEED_CARD_ORIENTATION = `
+  UPDATE cards.feed_settings SET card_orientation = $1 WHERE user_sub = $2;
+`;
 exports.UPDATE_CARD = `
   UPDATE cards.card SET front_variants = $2::jsonb, back_variants = $3::jsonb WHERE sub = $1;
 `;
@@ -46,7 +49,7 @@ exports.DELETE_CARD = `
   DELETE FROM cards.card WHERE sub = $1;
 `;
 exports.INSERT_DESK = `
-  INSERT INTO cards.desk (sub, title, description, creator_sub) VALUES ($1, $2, $3, $4) RETURNING created_at;
+  INSERT INTO cards.desk (sub, title, description, public, creator_sub) VALUES ($1, $2, $3, $4, $5) RETURNING created_at;
 `;
 exports.INSERT_DESK_SETTINGS = `
   INSERT INTO cards.desk_settings (desk_sub) VALUES ($1);
@@ -115,6 +118,9 @@ GROUP BY
   d.created_at
 
 ORDER BY d.created_at DESC;
+`;
+exports.GET_DESK_SUBS_BY_CREATOR_SUB = `
+  SELECT sub, title FROM cards.desk WHERE creator_sub = $1 ORDER BY created_at DESC;
 `;
 exports.GET_DESK_DETAILS = `
    WITH desk_data AS (

@@ -56,6 +56,15 @@ class UserRepository extends Table_1.default {
         };
         return this.getItem(query);
     }
+    async getAllUserIds() {
+        const query = {
+            name: 'getProfileByEmail',
+            text: `SELECT id FROM users.profile;`,
+            values: [],
+        };
+        const res = await this.getItems(query);
+        return res.map((item) => item.id);
+    }
 }
 exports.UserRepository = UserRepository;
 exports.default = new UserRepository();

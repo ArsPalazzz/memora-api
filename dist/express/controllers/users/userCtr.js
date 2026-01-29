@@ -40,6 +40,7 @@ exports.createUserCtr = createUserCtr;
 exports.getMyProfileCtr = getMyProfileCtr;
 exports.getDailyCtr = getDailyCtr;
 const UserService_1 = __importDefault(require("../../../services/users/UserService"));
+const CardService_1 = __importDefault(require("../../../services/cards/CardService"));
 const utils_1 = require("../../../utils");
 const http_errors_1 = __importDefault(require("http-errors"));
 const createUserDtoSchema = __importStar(require("./schemas/createUserDto.json"));
@@ -53,6 +54,7 @@ async function createUserCtr(req, res, next) {
         }
         const { email, password } = req.body;
         const user = await UserService_1.default.createUser({ email, pass: password });
+        await CardService_1.default.createFeedSettings(user.sub);
         res.json(user);
     }
     catch (e) {
@@ -67,7 +69,8 @@ async function createUserCtr(req, res, next) {
 async function getMyProfileCtr(req, res, next) {
     try {
         const profile = await UserService_1.default.getProfile({ sub: res.locals.userSub });
-        res.json(profile);
+        const settings = await CardService_1.default.getFeedSettingsByUserSub(res.locals.userSub);
+        res.json({ profile, settings });
     }
     catch (e) {
         next(e);

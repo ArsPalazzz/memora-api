@@ -17,7 +17,7 @@ const healthCheck_1 = require("./routers/healthCheck");
 const users_1 = require("./routers/users");
 const auth_1 = require("./routers/auth");
 const swagger_1 = __importDefault(require("./swagger"));
-const game_1 = require("./routers/game");
+const games_1 = require("./routers/games");
 const notifications_1 = require("./routers/notifications");
 exports.app = (0, express_1.default)();
 exports.httpServer = http_1.default.createServer(exports.app);
@@ -37,7 +37,7 @@ exports.app.use(auth_1.auth);
 // Routing
 exports.app.use(users_1.users);
 exports.app.use(cards_1.cards);
-exports.app.use(game_1.games);
+exports.app.use(games_1.games);
 exports.app.use(notifications_1.notifications);
 // Service healthcheck
 exports.app.use(healthCheck_1.healthCheck);

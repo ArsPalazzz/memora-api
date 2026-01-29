@@ -38,10 +38,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCardsCtr = getCardsCtr;
 exports.getDesksCtr = getDesksCtr;
+exports.getDeskSubsCtr = getDeskSubsCtr;
 exports.getDeskInfoCtr = getDeskInfoCtr;
 exports.createCardCtr = createCardCtr;
 exports.createDeskCtr = createDeskCtr;
 exports.updateDeskCtr = updateDeskCtr;
+exports.updateFeedSettingsCtr = updateFeedSettingsCtr;
 exports.updateCardCtr = updateCardCtr;
 exports.deleteCardCtr = deleteCardCtr;
 exports.archivedDeskCtr = archivedDeskCtr;
@@ -56,6 +58,7 @@ const getDeskInfoDtoSchema = __importStar(require("./schemas/getDeskInfoDto.json
 const updateDeskSettingsBodyDtoSchema = __importStar(require("./schemas/updateDeskSettingsBodyDto.json"));
 const updateDeskSettingsParamsDtoSchema = __importStar(require("./schemas/updateDeskSettingsParamsDto.json"));
 const updateDeskBodyDtoSchema = __importStar(require("./schemas/updateDeskBodyDto.json"));
+const updateFeedSettingsBodyDtoSchema = __importStar(require("./schemas/updateFeedSettingsBodyDto.json"));
 const updateCardBodyDtoSchema = __importStar(require("./schemas/updateCardBodyDto.json"));
 const updateDeskParamsDtoSchema = __importStar(require("./schemas/updateDeskParamsDto.json"));
 const validateCreateCardDto = utils_1.ajv.compile(createCardDtoSchema);
@@ -64,6 +67,7 @@ const validateGetDeskInfoDto = utils_1.ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = utils_1.ajv.compile(updateDeskSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = utils_1.ajv.compile(updateDeskSettingsParamsDtoSchema);
 const validateUpdateDeskBodyDto = utils_1.ajv.compile(updateDeskBodyDtoSchema);
+const validateUpdateFeedSettingsBodyDto = utils_1.ajv.compile(updateFeedSettingsBodyDtoSchema);
 const validateUpdateCardBodyDto = utils_1.ajv.compile(updateCardBodyDtoSchema);
 const validateUpdateDeskParamsDto = utils_1.ajv.compile(updateDeskParamsDtoSchema);
 async function getCardsCtr(req, res, next) {
@@ -78,7 +82,17 @@ async function getCardsCtr(req, res, next) {
 async function getDesksCtr(req, res, next) {
     try {
         const creatorSub = res.locals.userSub;
-        const desks = await CardService_1.default.getUserDesks(creatorSub);
+        const desks = await CardService_1.default.getUserDesksWithStats(creatorSub);
+        res.json(desks);
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function getDeskSubsCtr(req, res, next) {
+    try {
+        const creatorSub = res.locals.userSub;
+        const desks = await CardService_1.default.getUserDeskShort(creatorSub);
         res.json(desks);
     }
     catch (e) {
@@ -125,9 +139,15 @@ async function createDeskCtr(req, res, next) {
                 errors: validateCreateDeskDto.errors,
             }));
         }
-        const { sub, title, description } = req.body;
+        const { sub, title, description, isPublic } = req.body;
         const creatorSub = res.locals.userSub;
-        const deskInfo = await CardService_1.default.createDesk({ sub, title, description, creatorSub });
+        const deskInfo = await CardService_1.default.createDesk({
+            sub,
+            title,
+            description,
+            public: isPublic,
+            creatorSub,
+        });
         res.json(deskInfo);
     }
     catch (e) {
@@ -159,6 +179,28 @@ async function updateDeskCtr(req, res, next) {
             creatorSub,
         });
         res.json({ updated: true });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function updateFeedSettingsCtr(req, res, next) {
+    try {
+        const body = {
+            card_orientation: req.body.card_orientation,
+        };
+        if (!validateUpdateFeedSettingsBodyDto(body)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect feed settings body', {
+                errors: validateUpdateFeedSettingsBodyDto.errors,
+            }));
+        }
+        const creatorSub = res.locals.userSub;
+        await UserService_1.default.existProfile({ sub: creatorSub });
+        await CardService_1.default.updateFeedSettings({
+            cardOrientation: body.card_orientation,
+            creatorSub,
+        });
+        res.sendStatus(204);
     }
     catch (e) {
         next(e);

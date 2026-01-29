@@ -14,6 +14,34 @@ class GameSessionRepository extends Table_1.default {
             values: [sessionId, userSub, deskSub],
         });
     }
+    async getShownCards(sessionId) {
+        const query = {
+            name: 'getShownCards',
+            text: `
+      SELECT card_sub 
+      FROM games.session_shown_cards 
+      WHERE session_id = $1
+      ORDER BY shown_at DESC
+      LIMIT 100
+    `,
+            values: [sessionId],
+        };
+        const result = await this.getItems(query);
+        return result.map((row) => row.card_sub);
+    }
+    async recordCardShown(sessionId, cardSub) {
+        const query = {
+            name: 'recordCardShown',
+            text: `
+      INSERT INTO games.session_shown_cards (session_id, card_sub, shown_at)
+      VALUES ($1, $2, NOW())
+      ON CONFLICT (session_id, card_sub) DO UPDATE 
+      SET shown_at = NOW()
+    `,
+            values: [sessionId, cardSub],
+        };
+        await this.insertItem(query);
+    }
     async createReview(sessionId, userSub, batchId, tx) {
         tx.query({
             name: 'createReviewSession',
@@ -28,6 +56,14 @@ class GameSessionRepository extends Table_1.default {
             values: [sessionId, userSub],
         };
         return this.exists(query);
+    }
+    async createFeed(sessionId, userSub) {
+        const query = {
+            name: 'createFeedSession',
+            text: GameSessionRepositoryQueries_1.CREATE_FEED_SESSION,
+            values: [sessionId, userSub],
+        };
+        return this.insertItem(query);
     }
     async existBySessionId(sessionId) {
         const query = {
@@ -44,6 +80,15 @@ class GameSessionRepository extends Table_1.default {
             values: [sessionId],
         };
         return this.exists(query);
+    }
+    async getWeeklyDeskStats(userSub, deskSub) {
+        const query = {
+            name: 'getWeeklyDeskStats',
+            text: GameSessionRepositoryQueries_1.GET_WEEKLY_DESK_STATS,
+            values: [userSub, deskSub],
+        };
+        const res = await this.getItem(query);
+        return res?.weekly_attempts || undefined;
     }
     async finish(sessionId) {
         const query = {

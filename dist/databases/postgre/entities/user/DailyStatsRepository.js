@@ -95,6 +95,20 @@ class DailyStatsRepository extends Table_1.default {
         const result = await this.getItem(query);
         return result?.last_date ? new Date(result.last_date) : null;
     }
+    async getStatsForDate(userId, yesterdayStr) {
+        const query = {
+            name: 'getStatsForDate',
+            text: `
+       SELECT goal_achieved
+        FROM users.daily_stats
+        WHERE user_id = $1
+          AND date = $2
+          AND cards_reviewed > 0;
+      `,
+            values: [userId, yesterdayStr],
+        };
+        return await this.getItem(query);
+    }
 }
 exports.DailyStatsRepository = DailyStatsRepository;
 exports.default = new DailyStatsRepository();

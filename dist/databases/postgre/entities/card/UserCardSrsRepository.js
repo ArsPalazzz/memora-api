@@ -24,6 +24,26 @@ class UserCardSrsRepository extends Table_1.default {
         };
         return this.updateItems(query);
     }
+    async createOrUpdate(params) {
+        const { userSub, cardSub, repetitions = 0, intervalMinutes = 0, easeFactor = 2.5, nextReview = new Date(), } = params;
+        const query = {
+            name: 'createOrUpdateSrs',
+            text: `
+        INSERT INTO cards.user_card_srs 
+          (user_sub, card_sub, repetitions, interval_minutes, ease_factor, next_review, last_review)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (user_sub, card_sub) 
+        DO UPDATE SET
+          repetitions = EXCLUDED.repetitions,
+          interval_minutes = EXCLUDED.interval_minutes,
+          ease_factor = EXCLUDED.ease_factor,
+          next_review = EXCLUDED.next_review,
+          last_review = NOW()
+      `,
+            values: [userSub, cardSub, repetitions, intervalMinutes, easeFactor, nextReview],
+        };
+        return this.updateItems(query);
+    }
     async getUsersWithDueCards() {
         const query = {
             name: 'getUsersWithDueCards',

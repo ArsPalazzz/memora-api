@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const node_cron_1 = __importDefault(require("node-cron"));
 const StreakStatsRepository_1 = __importDefault(require("../databases/postgre/entities/user/StreakStatsRepository"));
 const DailyStatsRepository_1 = __importDefault(require("../databases/postgre/entities/user/DailyStatsRepository"));
+const UserRepository_1 = __importDefault(require("../databases/postgre/entities/user/UserRepository"));
 class StreakScheduler {
     constructor(logger) {
         this.logger = logger;
@@ -30,14 +31,13 @@ class StreakScheduler {
             const yesterday = new Date();
             yesterday.setDate(yesterday.getDate() - 1);
             const yesterdayStr = yesterday.toISOString().split('T')[0];
-            const usersWithActivity = await DailyStatsRepository_1.default.getUsersWithActivityOnDate(yesterdayStr);
-            this.logger.info(`Found ${usersWithActivity.length} users with activity yesterday`);
-            for (const user of usersWithActivity) {
+            const allUserIds = await UserRepository_1.default.getAllUserIds();
+            for (const userId of allUserIds) {
                 try {
-                    await this.updateUserStreak(user.user_id, yesterdayStr);
+                    await this.updateUserStreak(userId, yesterdayStr);
                 }
                 catch (userError) {
-                    this.logger.error(`Error updating streak for user ${user.user_id}:`, userError);
+                    this.logger.error(`Error updating streak for user ${userId}:`, userError);
                 }
             }
             this.logger.info('✅ Streak update completed');
@@ -46,27 +46,23 @@ class StreakScheduler {
             this.logger.error('❌ Error in updateStreaksForMidnight:', error);
         }
     }
-    async updateUserStreak(userId, dateStr) {
+    async updateUserStreak(userId, yesterdayStr) {
         const streakData = await StreakStatsRepository_1.default.getByUserId(userId);
-        if (!streakData) {
+        if (!streakData)
+            return;
+        const yesterdayStats = await DailyStatsRepository_1.default.getStatsForDate(userId, yesterdayStr);
+        if (!yesterdayStats) {
+            await StreakStatsRepository_1.default.resetStreak(userId);
+            this.logger.debug(`Reset streak for user ${userId} (didn't study yesterday)`);
             return;
         }
-        const lastStudyDate = await DailyStatsRepository_1.default.getLastStudyDate(userId);
-        const yesterday = new Date(dateStr);
-        if (lastStudyDate) {
-            const dayDiff = Math.floor((yesterday.getTime() - lastStudyDate.getTime()) / (1000 * 3600 * 24));
-            if (dayDiff === 1) {
-                await StreakStatsRepository_1.default.incrementStreak(userId);
-                this.logger.debug(`Increased streak for user ${userId} to ${streakData.current_streak + 1}`);
-            }
-            else if (dayDiff > 1) {
-                await StreakStatsRepository_1.default.resetStreak(userId);
-                this.logger.debug(`Reset streak for user ${userId} (gap: ${dayDiff} days)`);
-            }
+        if (yesterdayStats.goal_achieved) {
+            await StreakStatsRepository_1.default.incrementStreak(userId);
+            this.logger.debug(`Increased streak for user ${userId} to ${streakData.current_streak + 1}`);
         }
         else {
             await StreakStatsRepository_1.default.resetStreak(userId);
-            this.logger.debug(`Set first streak for user ${userId}`);
+            this.logger.debug(`Reset streak for user ${userId} (didn't complete goal)`);
         }
     }
 }

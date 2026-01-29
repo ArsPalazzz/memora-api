@@ -15,6 +15,45 @@ class CardRepository extends Table_1.default {
         };
         return this.getItems(query);
     }
+    async getCardBySub(cardSub) {
+        const query = {
+            name: 'getCardBySub',
+            text: `
+        SELECT 
+          id,
+          sub,
+          desk_sub,
+          front_variants,
+          back_variants,
+          image_uuid
+        FROM cards.card
+        WHERE sub = $1
+      `,
+            values: [cardSub],
+        };
+        return this.getItem(query);
+    }
+    async create(params) {
+        const { sub, deskSub, frontVariants, backVariants, imageUuid, copyOf } = params;
+        console.log(params);
+        const query = {
+            name: 'createCard',
+            text: `
+        INSERT INTO cards.card 
+          (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      `,
+            values: [
+                sub,
+                deskSub,
+                JSON.stringify(frontVariants),
+                JSON.stringify(backVariants),
+                imageUuid,
+                copyOf,
+            ],
+        };
+        return this.updateItems(query);
+    }
     async getCardSubsForPlay(deskSub, cardsPerSession) {
         const query = {
             name: 'getCardSubsForPlay',
@@ -39,6 +78,14 @@ class CardRepository extends Table_1.default {
             masteredCards: parseInt(item.masteredCards, 10) || 0,
         }));
     }
+    async getDeskShortByCreatorSub(userSub) {
+        const query = {
+            name: 'getDeskSubsByCreatorSub',
+            text: CardRepositoryQueries_1.GET_DESK_SUBS_BY_CREATOR_SUB,
+            values: [userSub],
+        };
+        return await this.getItems(query);
+    }
     async getDeskDetails(params) {
         const query = {
             name: 'getDeskDetails',
@@ -46,6 +93,33 @@ class CardRepository extends Table_1.default {
             values: [params.deskSub, params.userSub],
         };
         return this.getItem(query);
+    }
+    async isDeskOwner(userSub, deskSub) {
+        const query = {
+            name: 'isDeskOwner',
+            text: `
+        SELECT EXISTS (
+          SELECT 1 FROM cards.desk 
+          WHERE sub = $1 AND creator_sub = $2
+        ) as exists
+      `,
+            values: [deskSub, userSub],
+        };
+        const result = await this.getItem(query);
+        return result?.exists || false;
+    }
+    async getUserDesks(userSub) {
+        const query = {
+            name: 'getUserDesks',
+            text: `
+        SELECT sub, title 
+        FROM cards.desk 
+        WHERE creator_sub = $1 AND status = 'active'
+        ORDER BY created_at DESC
+      `,
+            values: [userSub],
+        };
+        return this.getItems(query);
     }
     async createCard(params) {
         const query = {
@@ -113,7 +187,7 @@ class CardRepository extends Table_1.default {
             const desk = await tx.query({
                 name: 'insertDesk',
                 text: CardRepositoryQueries_1.INSERT_DESK,
-                values: [params.sub, params.title, params.description, params.creatorSub],
+                values: [params.sub, params.title, params.description, params.public, params.creatorSub],
             });
             await tx.query({
                 name: 'insertDeskSettings',
@@ -133,6 +207,14 @@ class CardRepository extends Table_1.default {
             name: 'updateDesk',
             text: CardRepositoryQueries_1.UPDATE_DESK,
             values: [params.desk_sub, params.payload.title, params.payload.description],
+        };
+        return this.updateItems(query);
+    }
+    async updateFeedCardOrientation(params) {
+        const query = {
+            name: 'updateFeedCardOrientation',
+            text: CardRepositoryQueries_1.UPDATE_FEED_CARD_ORIENTATION,
+            values: [params.cardOrientation, params.userSub],
         };
         return this.updateItems(query);
     }
