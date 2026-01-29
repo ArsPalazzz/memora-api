@@ -11,8 +11,8 @@ export const shorthands = undefined;
 export const up = (pgm) => {
   pgm.createSchema('games', { ifNotExists: true });
 
-  pgm.createType({ schema: 'games', name: 'game_session_enum' }, ['desk', 'review']);
-  pgm.createType({ schema: 'games', name: 'game_mode_enum' }, ['write']);
+  pgm.createType({ schema: 'games', name: 'game_session_enum' }, ['desk', 'review', 'feed']);
+  pgm.createType({ schema: 'games', name: 'game_mode_enum' }, ['write', 'swipe']);
   pgm.createType({ schema: 'games', name: 'game_status_enum' }, ['active', 'finished', 'aborted']);
 
   pgm.createTable(

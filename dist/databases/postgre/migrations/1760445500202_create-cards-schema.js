@@ -25,6 +25,10 @@ export const up = (pgm) => {
         notNull: true,
         references: 'users.profile(sub)',
       },
+      public: {
+        type: 'boolean',
+        notNull: true,
+      },
       status: {
         type: { schema: 'cards', name: 'desk_status_enum' },
         notNull: true,
@@ -68,6 +72,10 @@ export const up = (pgm) => {
         notNull: true,
         default: pgm.func(`'[]'::jsonb`),
       },
+      copy_of: {
+        type: 'integer',
+        notNull: false,
+      },
       created_at: {
         type: 'timestamp',
         notNull: true,
@@ -82,6 +90,18 @@ export const up = (pgm) => {
       references: 'cards.desk(sub)',
       onDelete: 'CASCADE',
     },
+  });
+
+  pgm.addConstraint({ schema: 'cards', name: 'card' }, 'card_copy_of_fkey', {
+    foreignKeys: {
+      columns: 'copy_of',
+      references: 'cards.card(id)',
+      onDelete: 'SET NULL',
+    },
+  });
+
+  pgm.addConstraint({ schema: 'cards', name: 'card' }, 'card_copy_of_not_self', {
+    check: 'copy_of != id OR copy_of IS NULL',
   });
 
   pgm.createType({ schema: 'cards', name: 'card_orientation_enum' }, [
@@ -120,6 +140,35 @@ export const up = (pgm) => {
     foreignKeys: {
       columns: 'desk_sub',
       references: 'cards.desk(sub)',
+      onDelete: 'CASCADE',
+    },
+  });
+
+  pgm.createTable(
+    { schema: 'cards', name: 'feed_settings' },
+    {
+      id: { type: 'serial', primaryKey: true },
+      user_sub: {
+        type: 'uuid',
+        notNull: true,
+      },
+      card_orientation: {
+        type: { schema: 'cards', name: 'card_orientation_enum' },
+        notNull: true,
+        default: 'normal',
+      },
+      created_at: {
+        type: 'timestamp',
+        notNull: true,
+        default: pgm.func('CURRENT_TIMESTAMP'),
+      },
+    }
+  );
+
+  pgm.addConstraint({ schema: 'cards', name: 'feed_settings' }, 'feed_settings_user_sub_fkey', {
+    foreignKeys: {
+      columns: 'user_sub',
+      references: 'users.profile(sub)',
       onDelete: 'CASCADE',
     },
   });
@@ -210,11 +259,16 @@ export const down = (pgm) => {
   pgm.dropConstraint({ schema: 'cards', name: 'card_examples' }, 'card_examples_card_sub_fkey');
   pgm.dropConstraint({ schema: 'cards', name: 'user_card_srs' }, 'user_card_srs_card_sub_fkey');
   pgm.dropConstraint({ schema: 'cards', name: 'user_card_srs' }, 'user_card_srs_profile_sub_fkey');
+  pgm.dropConstraint({ schema: 'cards', name: 'feed_settings' }, 'feed_settings_user_sub_fkey');
   pgm.dropConstraint({ schema: 'cards', name: 'desk_settings' }, 'desk_settings_desk_sub_fkey');
   pgm.dropConstraint({ schema: 'cards', name: 'card' }, 'card_desk_sub_fkey');
 
+  pgm.dropConstraint({ schema: 'cards', name: 'card' }, 'card_copy_of_fkey');
+  pgm.dropConstraint({ schema: 'cards', name: 'card' }, 'card_copy_of_not_self');
+
   pgm.dropTable({ schema: 'cards', name: 'card_examples' });
   pgm.dropTable({ schema: 'cards', name: 'user_card_srs' });
+  pgm.dropTable({ schema: 'cards', name: 'feed_settings' });
   pgm.dropTable({ schema: 'cards', name: 'desk_settings' });
   pgm.dropType({ schema: 'cards', name: 'card_orientation_enum' });
   pgm.dropTable({ schema: 'cards', name: 'card' });
