@@ -15,6 +15,16 @@ export class GameSessionCardRepository extends Table {
     });
   }
 
+  async createWithoutTx(sessionId: string, cardSub: string, direction: string) {
+    const query: Query = {
+      name: 'createGameSessionCard',
+      text: CREATE_GAME_SESSION_CARD,
+      values: [sessionId, cardSub, direction],
+    };
+
+    await this.insertItem(query);
+  }
+
   async getNextInSessionCard(sessionId: string) {
     const query: Query = {
       name: 'getNextInSessionCard',
@@ -23,6 +33,29 @@ export class GameSessionCardRepository extends Table {
     };
 
     return this.getItem<{ sub: string; text: string[] }>(query);
+  }
+
+  async createFeedAction(params: {
+    sessionId: string;
+    cardSub: string;
+    action: 'like' | 'skip' | 'answer';
+    deskSub?: string;
+  }) {
+    const { sessionId, cardSub, action, deskSub } = params;
+
+    const query = `
+      INSERT INTO games.session_card 
+        (session_id, card_sub, direction, user_answer, is_correct, answered_at)
+      VALUES ($1, $2, 'back_to_front', $3, NULL, NOW())
+    `;
+
+    const userAnswer = action === 'like' ? 'liked' : action === 'answer' ? 'answered' : 'skipped';
+
+    return this.updateItems({
+      name: 'createFeedAction',
+      text: query,
+      values: [sessionId, cardSub, userAnswer],
+    });
   }
 
   async getLastAnsweredCard(sessionId: string) {

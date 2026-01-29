@@ -19,6 +19,18 @@ import cardExampleRepository, {
 import gameSessionRepository, {
   GameSessionRepository,
 } from '../../databases/postgre/entities/game/GameSessionRepository';
+import userCardPreferencesRepository, {
+  UserCardPreferencesRepository,
+} from '../../databases/postgre/entities/game/UserCardPreferencesRepository';
+import cardDiscoveryRepository, {
+  CardDiscoveryRepository,
+} from '../../databases/postgre/entities/game/CardDiscoveryRepository';
+import cardPreferenceRepository, {
+  CardPreferenceRepository,
+} from '../../databases/postgre/entities/card/CardPreferenceRepository';
+import feedSettingsRepository, {
+  FeedSettingsRepository,
+} from '../../databases/postgre/entities/card/FeedSettingsRepository';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -27,12 +39,190 @@ export class CardService {
     private readonly cardRepository: CardRepository,
     private readonly cardExampleRepository: CardExampleRepository,
     private readonly deskSettingsRepository: DeskSettingsRepository,
+    private readonly feedSettingsRepository: FeedSettingsRepository,
     private readonly userCardSrsRepository: UserCardSrsRepository,
-    private readonly gameSessionRepository: GameSessionRepository
+    private readonly gameSessionRepository: GameSessionRepository,
+    private readonly userCardPreferencesRepository: UserCardPreferencesRepository,
+    private readonly cardDiscoveryRepository: CardDiscoveryRepository,
+    private readonly cardPreferenceRepository: CardPreferenceRepository
   ) {}
 
   async getAllCards(): Promise<any> {
     return await this.cardRepository.getCards();
+  }
+
+  async recordCardShown(userSub: string, cardSub: string): Promise<void> {
+    const exists = await this.cardPreferenceRepository.checkIfRecordExists(userSub, cardSub);
+
+    if (exists) {
+      await this.cardPreferenceRepository.updateAction({ userSub, cardSub, action: 'shown' });
+    } else {
+      await this.cardPreferenceRepository.insertAction({ userSub, cardSub, action: 'shown' });
+    }
+  }
+
+  async getShownCardsForSession(userSub: string, sessionId: string): Promise<string[]> {
+    const res = await this.cardPreferenceRepository.getShownCardsForSession(userSub, sessionId);
+    return res.map((item) => item.card_sub);
+  }
+
+  async getCardForFeed(params: {
+    userSub: string;
+    exclude: string[];
+    preferences: string[];
+    limit: number;
+    sessionId: string;
+    cardOrientation: CARD_ORIENTATION;
+  }) {
+    const { userSub, exclude, preferences, limit, sessionId, cardOrientation } = params;
+
+    const searchQuery = preferences.length > 0 ? preferences.join(' | ') : '';
+
+    return this.cardDiscoveryRepository.getCardForFeed({
+      userSub,
+      exclude,
+      searchQuery,
+      limit,
+      sessionId,
+      cardOrientation,
+    });
+  }
+
+  async recordCardAction(userSub: string, cardSub: string, action: 'like' | 'skip' | 'answer') {
+    const actionType = action === 'like' ? 'liked' : action === 'answer' ? 'answered' : 'shown';
+
+    if (action === 'like') {
+      await this.cardDiscoveryRepository.updateCardStatsLikeCount(cardSub);
+    } else if (action === 'answer') {
+      await this.cardDiscoveryRepository.updateCardStatsAnswerCount(cardSub);
+    }
+
+    await this.userCardPreferencesRepository.recordCardAction(userSub, cardSub, actionType);
+  }
+
+  async addCardToSrs(userSub: string, cardSub: string) {
+    await this.userCardSrsRepository.createOrUpdate({
+      userSub,
+      cardSub,
+      repetitions: 0,
+      intervalMinutes: 0,
+      easeFactor: 2.5,
+      nextReview: new Date(),
+    });
+  }
+
+  async getFeedSettingsByUserSub(userSub: string) {
+    const res = await this.feedSettingsRepository.getByUserSub(userSub);
+    if (!res) {
+      throw new Error(`Feed settings for user ${userSub} not found`);
+    }
+
+    return res;
+  }
+
+  async addCardToDesk(userSub: string, cardSub: string, targetDeskSub: string) {
+    const isOwner = await this.cardRepository.isDeskOwner(userSub, targetDeskSub);
+    if (!isOwner) {
+      throw new ForbiddenError('You are not the owner of this desk');
+    }
+
+    await this.cloneCardToDesk(cardSub, targetDeskSub);
+  }
+
+  async cloneCardToDesk(cardSub: string, targetDeskSub: string) {
+    const originalCard = await this.cardRepository.getCardBySub(cardSub);
+    if (!originalCard) {
+      throw new NotFoundError('Card not found');
+    }
+
+    const newCardSub = uuidV4();
+    await this.cardRepository.create({
+      sub: newCardSub,
+      deskSub: targetDeskSub,
+      frontVariants: originalCard.front_variants,
+      backVariants: originalCard.back_variants,
+      imageUuid: originalCard.image_uuid,
+    });
+
+    return newCardSub;
+  }
+
+  async cloneCardToDesks(cardSub: string, deskSubs: string[]) {
+    const originalCard = await this.cardRepository.getCardBySub(cardSub);
+    if (!originalCard) {
+      throw new NotFoundError('Card not found');
+    }
+
+    for (const sub of deskSubs) {
+      const newCardSub = uuidV4();
+      await this.cardRepository.create({
+        sub: newCardSub,
+        deskSub: sub,
+        frontVariants: originalCard.front_variants,
+        backVariants: originalCard.back_variants,
+        imageUuid: originalCard.image_uuid,
+        copyOf: originalCard.id,
+      });
+    }
+  }
+
+  async isDeskOwner(userSub: string, deskSub: string) {
+    return this.cardRepository.isDeskOwner(userSub, deskSub);
+  }
+
+  async isDesksOwner(userSub: string, deskSubs: string[]) {
+    if (!deskSubs || deskSubs.length === 0) {
+      return false;
+    }
+
+    try {
+      const promises = deskSubs.map((deskSub) => this.isDeskOwner(userSub, deskSub));
+      const results = await Promise.all(promises);
+
+      return results.every((exists) => exists);
+    } catch (error) {
+      console.error('Error checking desk ownership:', error);
+      return false;
+    }
+  }
+
+  async getLikedCards(userSub: string) {
+    return this.userCardPreferencesRepository.getLikedCards(userSub);
+  }
+
+  async analyzeCardTopics(cardSubs: string[]) {
+    return this.cardDiscoveryRepository.analyzeCardTopics(cardSubs);
+  }
+
+  async getUserDesks(userSub: string) {
+    return this.cardRepository.getUserDesks(userSub);
+  }
+
+  async getUserTopicPreferences(userSub: string) {
+    const userDesks = await this.getUserDesks(userSub);
+    const likedCards = await this.getLikedCards(userSub);
+
+    const topics = new Set<string>();
+    userDesks.forEach((desk) => {
+      const words = desk.title.toLowerCase().split(/\s+/);
+      words.forEach((word) => {
+        if (word.length > 3) topics.add(word);
+      });
+    });
+
+    const likedCardTopics = await this.analyzeCardTopics(likedCards);
+    likedCardTopics.forEach((topic) => topics.add(topic));
+
+    return Array.from(topics);
+  }
+
+  async createFeedSettings(userSub: string) {
+    const exist = await this.feedSettingsRepository.existByUserSub(userSub);
+    if (exist) {
+      throw new Error(`Feed settings already exist for user with sub = ${userSub}`);
+    }
+
+    await this.feedSettingsRepository.create(userSub);
   }
 
   async getDeskSettings(deskSub: string) {
@@ -43,8 +233,23 @@ export class CardService {
     await this.cardRepository.updateLastTimePlayedDesk(deskSub, tx);
   }
 
-  async getUserDesks(userSub: string): Promise<any> {
+  async getUserDesksWithStats(userSub: string): Promise<
+    {
+      totalCards: number;
+      newCards: number;
+      dueCards: number;
+      learningCards: number;
+      masteredCards: number;
+      sub: string;
+      title: string;
+      description: string;
+    }[]
+  > {
     return await this.cardRepository.getDesksByCreatorSub(userSub);
+  }
+
+  async getUserDeskShort(userSub: string) {
+    return await this.cardRepository.getDeskShortByCreatorSub(userSub);
   }
 
   async getDesk(payload: GetDeskPayload): Promise<any> {
@@ -79,21 +284,27 @@ export class CardService {
     }
 
     const sub = uuidV4();
-    const cardSub = await this.cardRepository.createCard({ sub, ...payload });
-    if (!cardSub) throw new Error(`Card not created`);
+    await this.cardRepository.createCard({ sub, ...payload });
 
-    await this.generateExamples(cardSub, payload.front, payload.back);
+    await this.generateExamples(sub, payload.front, payload.back);
   }
 
   async createDesk(payload: {
     sub: string;
     title: string;
     description: string;
+    public: boolean;
     creatorSub: string;
   }) {
     const created_at = await this.cardRepository.createDesk(payload);
 
-    return { sub: payload.sub, title: payload.title, description: payload.description, created_at };
+    return {
+      sub: payload.sub,
+      title: payload.title,
+      description: payload.description,
+      public: payload.public,
+      created_at,
+    };
   }
 
   async updateDesk(payload: {
@@ -120,6 +331,21 @@ export class CardService {
     await this.cardRepository.updateDesk({
       desk_sub: deskSub,
       payload: body,
+    });
+  }
+
+  async updateFeedSettings(payload: { cardOrientation: CARD_ORIENTATION; creatorSub: string }) {
+    const { cardOrientation, creatorSub } = payload;
+    const exist = await this.feedSettingsRepository.existByUserSub(creatorSub);
+    if (!exist) {
+      throw new NotFoundError(
+        `CardService: feed settings for user with sub = ${creatorSub} not found`
+      );
+    }
+
+    await this.cardRepository.updateFeedCardOrientation({
+      userSub: creatorSub,
+      cardOrientation,
     });
   }
 
@@ -270,7 +496,8 @@ export class CardService {
       } else if (repetitions === 9) {
         interval = 7200;
       } else {
-        interval = Math.min(interval * 1.2, 14 * 24 * 60);
+        interval = Math.round(interval * 1.2);
+        interval = Math.min(interval, 14 * 24 * 60);
       }
 
       if (quality === 5) {
@@ -403,6 +630,10 @@ export default new CardService(
   cardRepository,
   cardExampleRepository,
   deskSettingsRepository,
+  feedSettingsRepository,
   userCardSrsRepository,
-  gameSessionRepository
+  gameSessionRepository,
+  userCardPreferencesRepository,
+  cardDiscoveryRepository,
+  cardPreferenceRepository
 );

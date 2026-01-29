@@ -3,6 +3,7 @@ import { Query } from '../../index';
 import {
   CREATE_GAME_SESSION,
   CREATE_REVIEW_SESSION,
+  CREATE_FEED_SESSION,
   EXIST_BY_SESSION_ID,
   FINISH_SESSION,
   GET_NEXT_UNANSWERED_CARD,
@@ -23,6 +24,38 @@ export class GameSessionRepository extends Table {
     });
   }
 
+  async getShownCards(sessionId: string): Promise<string[]> {
+    const query = {
+      name: 'getShownCards',
+      text: `
+      SELECT card_sub 
+      FROM games.session_shown_cards 
+      WHERE session_id = $1
+      ORDER BY shown_at DESC
+      LIMIT 100
+    `,
+      values: [sessionId],
+    };
+
+    const result = await this.getItems<{ card_sub: string }>(query);
+    return result.map((row) => row.card_sub);
+  }
+
+  async recordCardShown(sessionId: string, cardSub: string): Promise<void> {
+    const query = {
+      name: 'recordCardShown',
+      text: `
+      INSERT INTO games.session_shown_cards (session_id, card_sub, shown_at)
+      VALUES ($1, $2, NOW())
+      ON CONFLICT (session_id, card_sub) DO UPDATE 
+      SET shown_at = NOW()
+    `,
+      values: [sessionId, cardSub],
+    };
+
+    await this.insertItem(query);
+  }
+
   async createReview(sessionId: string, userSub: string, batchId: string, tx: PgTransaction) {
     tx.query({
       name: 'createReviewSession',
@@ -39,6 +72,16 @@ export class GameSessionRepository extends Table {
     };
 
     return this.exists(query);
+  }
+
+  async createFeed(sessionId: string, userSub: string) {
+    const query: Query = {
+      name: 'createFeedSession',
+      text: CREATE_FEED_SESSION,
+      values: [sessionId, userSub],
+    };
+
+    return this.insertItem(query);
   }
 
   async existBySessionId(sessionId: string) {

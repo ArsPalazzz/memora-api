@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import userService from '../../../services/users/UserService';
+import cardService from '../../../services/cards/CardService';
 import { ajv } from '../../../utils';
 import createError from 'http-errors';
 
@@ -20,6 +21,8 @@ export async function createUserCtr(req: Request, res: Response, next: NextFunct
     const { email, password } = req.body as { email: string; password: string };
 
     const user = await userService.createUser({ email, pass: password });
+    await cardService.createFeedSettings(user.sub);
+
     res.json(user);
   } catch (e: unknown) {
     if (e instanceof Error) {
@@ -35,7 +38,8 @@ export async function createUserCtr(req: Request, res: Response, next: NextFunct
 export async function getMyProfileCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const profile = await userService.getProfile({ sub: res.locals.userSub as string });
-    res.json(profile);
+    const settings = await cardService.getFeedSettingsByUserSub(res.locals.userSub as string);
+    res.json({ profile, settings });
   } catch (e: unknown) {
     next(e);
   }

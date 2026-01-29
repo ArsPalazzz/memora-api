@@ -6,6 +6,15 @@ import {
   UPSERT_USER_CARDS_SRS,
 } from './UserCardSrsRepositoryQueries';
 
+interface CreateOrUpdateSrsParams {
+  userSub: string;
+  cardSub: string;
+  repetitions?: number;
+  intervalMinutes?: number;
+  easeFactor?: number;
+  nextReview?: Date;
+}
+
 export class UserCardSrsRepository extends Table {
   async get(userSub: string, cardSub: string) {
     const query: Query = {
@@ -30,6 +39,36 @@ export class UserCardSrsRepository extends Table {
     const query: Query = {
       name: 'upsertUserCardSrs',
       text: UPSERT_USER_CARDS_SRS,
+      values: [userSub, cardSub, repetitions, intervalMinutes, easeFactor, nextReview],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async createOrUpdate(params: CreateOrUpdateSrsParams) {
+    const {
+      userSub,
+      cardSub,
+      repetitions = 0,
+      intervalMinutes = 0,
+      easeFactor = 2.5,
+      nextReview = new Date(),
+    } = params;
+
+    const query: Query = {
+      name: 'createOrUpdateSrs',
+      text: `
+        INSERT INTO cards.user_card_srs 
+          (user_sub, card_sub, repetitions, interval_minutes, ease_factor, next_review, last_review)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        ON CONFLICT (user_sub, card_sub) 
+        DO UPDATE SET
+          repetitions = EXCLUDED.repetitions,
+          interval_minutes = EXCLUDED.interval_minutes,
+          ease_factor = EXCLUDED.ease_factor,
+          next_review = EXCLUDED.next_review,
+          last_review = NOW()
+      `,
       values: [userSub, cardSub, repetitions, intervalMinutes, easeFactor, nextReview],
     };
 

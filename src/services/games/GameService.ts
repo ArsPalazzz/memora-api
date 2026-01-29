@@ -202,6 +202,141 @@ export class GameService {
     await this.gameSessionRepository.finish(sessionId);
   }
 
+  async startFeedSession(userSub: string): Promise<any> {
+    const sessionId = uuidV4();
+
+    await this.gameSessionRepository.createFeed(sessionId, userSub);
+
+    return { sessionId };
+  }
+
+  async getFeedNextCard(userSub: string, sessionId: string) {
+    const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
+    if (!haveAccess) {
+      throw new NotFoundError('No access to session');
+    }
+
+    const shownCardSubs = await this.getShownCardsInSession(userSub, sessionId);
+
+    const userPreferences = await this.getUserTopicPreferences(userSub);
+
+    const limit = shownCardSubs.length === 0 ? 2 : 1;
+
+    const feedSettings = await this.cardService.getFeedSettingsByUserSub(userSub);
+
+    const cards = await this.cardService.getCardForFeed({
+      userSub,
+      exclude: shownCardSubs,
+      preferences: userPreferences,
+      limit,
+      sessionId,
+      cardOrientation: feedSettings.card_orientation,
+    });
+
+    if (!cards || cards.length === 0) return null;
+
+    for (const card of cards) {
+      await this.gameSessionCardRepository.createWithoutTx(
+        sessionId,
+        card.sub,
+        card.card_direction
+      );
+    }
+
+    return {
+      cards: cards.map((c) => ({
+        sub: c.sub,
+        text: c.front_variants,
+        backVariants: c.back_variants,
+        imageUuid: c.image_uuid,
+        deskTitle: c.desk_title,
+        deskSub: c.desk_sub,
+        globalStats: {
+          shown: c.global_shown_count,
+          liked: c.global_like_count,
+          answered: c.global_answer_count,
+        },
+        examples: c.examples,
+      })),
+    };
+  }
+
+  async cardShown(userSub: string, sessionId: string, cardSub: string) {
+    const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
+    if (!haveAccess) {
+      throw new NotFoundError('No access to session');
+    }
+
+    await this.cardService.recordCardShown(userSub, cardSub);
+  }
+
+  async getShownCardsInSession(userSub: string, sessionId: string): Promise<string[]> {
+    return this.cardService.getShownCardsForSession(userSub, sessionId);
+  }
+
+  async recordCardShownInSession(sessionId: string, cardSub: string): Promise<void> {
+    return this.gameSessionRepository.recordCardShown(sessionId, cardSub);
+  }
+
+  async swipeCard(params: {
+    userSub: string;
+    sessionId: string;
+    cardSub: string;
+    action: 'like' | 'skip' | 'answer';
+    deskSub?: string;
+  }) {
+    const { userSub, sessionId, cardSub, action, deskSub } = params;
+
+    const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
+    if (!haveAccess) {
+      throw new ForbiddenError('No access to session');
+    }
+
+    await this.cardService.recordCardAction(userSub, cardSub, action);
+
+    if (action === 'like') {
+      await this.cardService.addCardToSrs(userSub, cardSub);
+    }
+
+    if (deskSub) {
+      await this.cardService.addCardToDesk(userSub, cardSub, deskSub);
+    }
+
+    await this.gameSessionCardRepository.createFeedAction({
+      sessionId,
+      cardSub,
+      action,
+      deskSub,
+    });
+  }
+
+  async addCardToDesk(userSub: string, cardSub: string, deskSubs: string[]) {
+    const isOwner = await this.cardService.isDesksOwner(userSub, deskSubs);
+    if (!isOwner) {
+      throw new ForbiddenError('You are not the owner of desk/desks');
+    }
+
+    await this.cardService.cloneCardToDesks(cardSub, deskSubs);
+  }
+
+  private async getUserTopicPreferences(userSub: string) {
+    const userDesks = await this.cardService.getUserDesks(userSub);
+    const likedCards = await this.cardService.getLikedCards(userSub);
+
+    const topics = new Set<string>();
+    userDesks.forEach((desk) => {
+      const words = desk.title.toLowerCase().split(/\s+/);
+      words.forEach((word) => {
+        if (word.length > 3) topics.add(word);
+      });
+    });
+
+    const likedCardTopics = await this.cardService.analyzeCardTopics(likedCards);
+    likedCardTopics.forEach((topic) => topics.add(topic));
+
+    return Array.from(topics);
+  }
+
   private normalize(value: string): string {
     return value.trim().toLowerCase().replace(/\s+/g, ' ');
   }

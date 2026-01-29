@@ -126,3 +126,54 @@ export const HAS_UNANSWERED_CARDS = `
     LIMIT 1
   );
 `;
+
+export const CREATE_FEED_SESSION = `
+  INSERT INTO games.session(id, user_sub, type, mode, status, created_at)
+    VALUES($1,$2,'feed','swipe','active',NOW())`;
+
+export const GET_FEED_NEXT_CARD = `
+  WITH user_preferences AS (
+    SELECT DISTINCT desk_sub_text_search
+    FROM cards.card c
+    WHERE c.sub IN (
+      SELECT card_sub FROM cards.user_card_preferences 
+      WHERE user_sub = $1 AND action = 'liked'
+      LIMIT 10
+    )
+    AND desk_sub_text_search IS NOT NULL
+  ),
+  recommended_cards AS (
+    SELECT 
+      c.sub,
+      c.front_variants,
+      c.back_variants,
+      c.image_uuid,
+      c.global_shown_count,
+      c.global_like_count,
+      c.global_answer_count,
+      d.title as desk_title,
+      c.desk_sub,
+      COALESCE((
+        SELECT COUNT(*) FROM user_preferences up
+        WHERE c.desk_sub_text_search @@ up.desk_sub_text_search
+      ), 0) * 0.5 +
+      (c.global_like_count * 1.0 / NULLIF(c.global_shown_count, 0)) * 0.3 +
+      (RANDOM() * 0.2)
+      AS relevance_score
+    FROM cards.card c
+    JOIN cards.desk d ON d.sub = c.desk_sub
+    WHERE c.sub NOT IN (
+      SELECT card_sub FROM cards.user_card_srs WHERE user_sub = $1
+    )
+    AND c.sub NOT IN (
+      SELECT card_sub FROM cards.user_card_preferences 
+      WHERE user_sub = $1 
+      AND shown_at > NOW() - INTERVAL '7 days'
+    )
+    AND ($3::uuid[] IS NULL OR c.sub != ALL($3))
+    AND d.creator_sub != $1
+    ORDER BY relevance_score DESC
+    LIMIT $2
+  )
+  SELECT * FROM recommended_cards;
+`;

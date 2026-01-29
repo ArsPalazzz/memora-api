@@ -42,6 +42,10 @@ export const UPDATE_DESK = `
   UPDATE cards.desk SET title = $2, description = $3 WHERE sub = $1;
 `;
 
+export const UPDATE_FEED_CARD_ORIENTATION = `
+  UPDATE cards.feed_settings SET card_orientation = $1 WHERE user_sub = $2;
+`;
+
 export const UPDATE_CARD = `
   UPDATE cards.card SET front_variants = $2::jsonb, back_variants = $3::jsonb WHERE sub = $1;
 `;
@@ -55,7 +59,7 @@ export const DELETE_CARD = `
 `;
 
 export const INSERT_DESK = `
-  INSERT INTO cards.desk (sub, title, description, creator_sub) VALUES ($1, $2, $3, $4) RETURNING created_at;
+  INSERT INTO cards.desk (sub, title, description, public, creator_sub) VALUES ($1, $2, $3, $4, $5) RETURNING created_at;
 `;
 
 export const INSERT_DESK_SETTINGS = `
@@ -128,6 +132,10 @@ GROUP BY
   d.created_at
 
 ORDER BY d.created_at DESC;
+`;
+
+export const GET_DESK_SUBS_BY_CREATOR_SUB = `
+  SELECT sub, title FROM cards.desk WHERE creator_sub = $1 ORDER BY created_at DESC;
 `;
 
 export const GET_DESK_DETAILS = `

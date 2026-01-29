@@ -10,6 +10,7 @@ import * as getDeskInfoDtoSchema from './schemas/getDeskInfoDto.json';
 import * as updateDeskSettingsBodyDtoSchema from './schemas/updateDeskSettingsBodyDto.json';
 import * as updateDeskSettingsParamsDtoSchema from './schemas/updateDeskSettingsParamsDto.json';
 import * as updateDeskBodyDtoSchema from './schemas/updateDeskBodyDto.json';
+import * as updateFeedSettingsBodyDtoSchema from './schemas/updateFeedSettingsBodyDto.json';
 import * as updateCardBodyDtoSchema from './schemas/updateCardBodyDto.json';
 import * as updateDeskParamsDtoSchema from './schemas/updateDeskParamsDto.json';
 import { CARD_ORIENTATION } from '../../../services/cards/card.const';
@@ -20,6 +21,7 @@ const validateGetDeskInfoDto = ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = ajv.compile(updateDeskSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = ajv.compile(updateDeskSettingsParamsDtoSchema);
 const validateUpdateDeskBodyDto = ajv.compile(updateDeskBodyDtoSchema);
+const validateUpdateFeedSettingsBodyDto = ajv.compile(updateFeedSettingsBodyDtoSchema);
 const validateUpdateCardBodyDto = ajv.compile(updateCardBodyDtoSchema);
 const validateUpdateDeskParamsDto = ajv.compile(updateDeskParamsDtoSchema);
 
@@ -36,7 +38,18 @@ export async function getDesksCtr(req: Request, res: Response, next: NextFunctio
   try {
     const creatorSub = res.locals.userSub as string;
 
-    const desks = await cardService.getUserDesks(creatorSub);
+    const desks = await cardService.getUserDesksWithStats(creatorSub);
+    res.json(desks);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getDeskSubsCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const creatorSub = res.locals.userSub as string;
+
+    const desks = await cardService.getUserDeskShort(creatorSub);
     res.json(desks);
   } catch (e) {
     next(e);
@@ -96,15 +109,22 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const { sub, title, description } = req.body as {
+    const { sub, title, description, isPublic } = req.body as {
       sub: string;
       title: string;
       description: string;
+      isPublic: boolean;
     };
 
     const creatorSub = res.locals.userSub as string;
 
-    const deskInfo = await cardService.createDesk({ sub, title, description, creatorSub });
+    const deskInfo = await cardService.createDesk({
+      sub,
+      title,
+      description,
+      public: isPublic,
+      creatorSub,
+    });
     res.json(deskInfo);
   } catch (e) {
     next(e);
@@ -145,6 +165,35 @@ export async function updateDeskCtr(req: Request, res: Response, next: NextFunct
       creatorSub,
     });
     res.json({ updated: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function updateFeedSettingsCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = {
+      card_orientation: req.body.card_orientation as CARD_ORIENTATION,
+    };
+
+    if (!validateUpdateFeedSettingsBodyDto(body)) {
+      return next(
+        createError(422, 'Incorrect feed settings body', {
+          errors: validateUpdateFeedSettingsBodyDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    await cardService.updateFeedSettings({
+      cardOrientation: body.card_orientation as CARD_ORIENTATION,
+      creatorSub,
+    });
+
+    res.sendStatus(204);
   } catch (e) {
     next(e);
   }

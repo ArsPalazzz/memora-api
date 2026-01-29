@@ -9,6 +9,7 @@ import {
   GET_CARD_SUBS_FOR_PLAY,
   GET_CARDS,
   GET_DESK_DETAILS,
+  GET_DESK_SUBS_BY_CREATOR_SUB,
   GET_DESKS_BY_CREATOR_SUB,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
@@ -18,10 +19,21 @@ import {
   UPDATE_CARD,
   UPDATE_DESK,
   UPDATE_DESK_SETTINGS,
+  UPDATE_FEED_CARD_ORIENTATION,
   UPDATE_LAST_TIME_PLAYED_DESK,
 } from './CardRepositoryQueries';
 import { GetDeskDetailsResult } from '../../../../services/cards/card.interfaces';
 import { CARD_ORIENTATION } from '../../../../services/cards/card.const';
+import { DatabaseError } from '../../../../exceptions';
+
+interface CreateCardParams {
+  sub: string;
+  deskSub: string;
+  frontVariants: string[];
+  backVariants: string[];
+  imageUuid?: string;
+  copyOf?: number;
+}
 
 export class CardRepository extends Table {
   async getCards() {
@@ -32,6 +44,56 @@ export class CardRepository extends Table {
     };
 
     return this.getItems<any>(query);
+  }
+
+  async getCardBySub(cardSub: string) {
+    const query: Query = {
+      name: 'getCardBySub',
+      text: `
+        SELECT 
+          id,
+          sub,
+          desk_sub,
+          front_variants,
+          back_variants,
+          image_uuid
+        FROM cards.card
+        WHERE sub = $1
+      `,
+      values: [cardSub],
+    };
+
+    return this.getItem<{
+      id: number;
+      sub: string;
+      desk_sub: string;
+      front_variants: string[];
+      back_variants: string[];
+      image_uuid?: string;
+    }>(query);
+  }
+
+  async create(params: CreateCardParams) {
+    const { sub, deskSub, frontVariants, backVariants, imageUuid, copyOf } = params;
+    console.log(params);
+    const query: Query = {
+      name: 'createCard',
+      text: `
+        INSERT INTO cards.card 
+          (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+      `,
+      values: [
+        sub,
+        deskSub,
+        JSON.stringify(frontVariants),
+        JSON.stringify(backVariants),
+        imageUuid,
+        copyOf,
+      ],
+    };
+
+    return this.updateItems(query);
   }
 
   async getCardSubsForPlay(deskSub: string, cardsPerSession: number) {
@@ -72,6 +134,16 @@ export class CardRepository extends Table {
     }));
   }
 
+  async getDeskShortByCreatorSub(userSub: string) {
+    const query: Query = {
+      name: 'getDeskSubsByCreatorSub',
+      text: GET_DESK_SUBS_BY_CREATOR_SUB,
+      values: [userSub],
+    };
+
+    return await this.getItems<{ sub: string; title: string }>(query);
+  }
+
   async getDeskDetails(params: { deskSub: string; userSub: string }) {
     const query: Query = {
       name: 'getDeskDetails',
@@ -80,6 +152,37 @@ export class CardRepository extends Table {
     };
 
     return this.getItem<GetDeskDetailsResult>(query);
+  }
+
+  async isDeskOwner(userSub: string, deskSub: string) {
+    const query: Query = {
+      name: 'isDeskOwner',
+      text: `
+        SELECT EXISTS (
+          SELECT 1 FROM cards.desk 
+          WHERE sub = $1 AND creator_sub = $2
+        ) as exists
+      `,
+      values: [deskSub, userSub],
+    };
+
+    const result = await this.getItem<{ exists: boolean }>(query);
+    return result?.exists || false;
+  }
+
+  async getUserDesks(userSub: string) {
+    const query: Query = {
+      name: 'getUserDesks',
+      text: `
+        SELECT sub, title 
+        FROM cards.desk 
+        WHERE creator_sub = $1 AND status = 'active'
+        ORDER BY created_at DESC
+      `,
+      values: [userSub],
+    };
+
+    return this.getItems<{ sub: string; title: string }>(query);
   }
 
   async createCard(params: { sub: string; front: string[]; back: string[]; desk_sub: string }) {
@@ -159,6 +262,7 @@ export class CardRepository extends Table {
     sub: string;
     title: string;
     description: string;
+    public: boolean;
     creatorSub: string;
   }) {
     const tx = await this.startTransaction();
@@ -167,7 +271,7 @@ export class CardRepository extends Table {
       const desk = await tx.query({
         name: 'insertDesk',
         text: INSERT_DESK,
-        values: [params.sub, params.title, params.description, params.creatorSub],
+        values: [params.sub, params.title, params.description, params.public, params.creatorSub],
       });
 
       await tx.query({
@@ -189,6 +293,16 @@ export class CardRepository extends Table {
       name: 'updateDesk',
       text: UPDATE_DESK,
       values: [params.desk_sub, params.payload.title, params.payload.description],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async updateFeedCardOrientation(params: { userSub: string; cardOrientation: CARD_ORIENTATION }) {
+    const query: Query = {
+      name: 'updateFeedCardOrientation',
+      text: UPDATE_FEED_CARD_ORIENTATION,
+      values: [params.cardOrientation, params.userSub],
     };
 
     return this.updateItems(query);

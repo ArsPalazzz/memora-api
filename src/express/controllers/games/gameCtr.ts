@@ -150,3 +150,95 @@ export async function finishGameSessionCtr(req: Request, res: Response, next: Ne
     next(e);
   }
 }
+
+export async function startFeedSessionCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    const { sessionId } = await gameService.startFeedSession(userSub);
+    res.json({ sessionId });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function swipeCardCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    // if (!validateSwipeCardBodyDto(req.body)) {
+    //   return next(
+    //     createError(422, 'Incorrect swipe card body', {
+    //       errors: validateSwipeCardBodyDto.errors,
+    //     })
+    //   );
+    // }
+
+    const { sessionId, cardSub, action, deskSub } = req.body as {
+      sessionId: string;
+      cardSub: string;
+      action: 'like' | 'skip' | 'answer';
+      deskSub?: string;
+    };
+
+    await gameService.swipeCard({ userSub, sessionId, cardSub, action, deskSub });
+    res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function feedNextCardCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    // if (!validateFeedNextCardBodyDto(req.query)) {
+    //   return next(
+    //     createError(422, 'Incorrect feed next card body', {
+    //       errors: validateFeedNextCardBodyDto.errors,
+    //     })
+    //   );
+    // }
+
+    const { sessionId } = req.query as { sessionId: string };
+
+    const card = await gameService.getFeedNextCard(userSub, sessionId);
+    res.json(card);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function cardShownCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    // if (!validateFeedNextCardBodyDto(req.query)) {
+    //   return next(
+    //     createError(422, 'Incorrect feed next card body', {
+    //       errors: validateFeedNextCardBodyDto.errors,
+    //     })
+    //   );
+    // }
+
+    const { cardSub, sessionId } = req.body as { cardSub: string; sessionId: string };
+
+    const card = await gameService.cardShown(userSub, sessionId, cardSub);
+    res.json(card);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function addCardToDeskCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    const { cardSub, deskSubs } = req.body as { cardSub: string; deskSubs: string[] };
+
+    await gameService.addCardToDesk(userSub, cardSub, deskSubs);
+    res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+}
