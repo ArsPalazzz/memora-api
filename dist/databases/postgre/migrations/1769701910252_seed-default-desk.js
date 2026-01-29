@@ -8,17 +8,17 @@ export const shorthands = undefined;
  * @param run {() => void | undefined}
  * @returns {Promise<void> | void}
  */
-export const up = (pgm) => {
+export const up = async (pgm) => {
   const defaultDeskConfig = {
     sub: 'acde070d-8c4c-4f0d-9d8a-162843c10333',
     title: 'Default Desk',
     description: 'Default system desk for all users',
-    creatorSub: '8d123282-434b-44ee-b7b2-79885f89a47b',
+    creatorSub: 'cb7d0674-03f9-48c4-aec7-45a9c8880c2a',
     public: true,
     status: 'active',
   };
 
-  pgm.sql(
+  await pgm.db.query(
     `
     INSERT INTO cards.desk (
       sub, 
@@ -45,7 +45,7 @@ export const up = (pgm) => {
     ]
   );
 
-  pgm.sql(
+  await pgm.db.query(
     `
     INSERT INTO cards.desk_settings (
       desk_sub, 
@@ -55,8 +55,7 @@ export const up = (pgm) => {
     ) VALUES (
       $1, $2, $3, 
       CURRENT_TIMESTAMP
-    )
-    ON CONFLICT (desk_sub) DO NOTHING;
+    );
   `,
     [defaultDeskConfig.sub, 10, 'normal']
   );
@@ -67,10 +66,10 @@ export const up = (pgm) => {
  * @param run {() => void | undefined}
  * @returns {Promise<void> | void}
  */
-export const down = (pgm) => {
+export const down = async (pgm) => {
   const DEFAULT_DESK_SUB = 'acde070d-8c4c-4f0d-9d8a-162843c10333';
 
-  pgm.sql(
+  await pgm.db.query(
     `
     DELETE FROM cards.desk_settings 
     WHERE desk_sub = $1;
@@ -78,7 +77,7 @@ export const down = (pgm) => {
     [DEFAULT_DESK_SUB]
   );
 
-  pgm.sql(
+  await pgm.db.query(
     `
     DELETE FROM cards.desk 
     WHERE sub = $1;

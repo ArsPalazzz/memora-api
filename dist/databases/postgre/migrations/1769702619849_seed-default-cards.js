@@ -8,7 +8,7 @@ export const shorthands = undefined;
  * @param run {() => void | undefined}
  * @returns {Promise<void> | void}
  */
-export const up = (pgm) => {
+export const up = async (pgm) => {
   const deskSub = 'acde070d-8c4c-4f0d-9d8a-162843c10333';
 
   // const cardsWithExamples = [
@@ -25,7 +25,7 @@ export const up = (pgm) => {
   //   },
   // ];
 
-  pgm.sql(
+  await pgm.db.query(
     `
     INSERT INTO cards.card
       (sub, desk_sub, front_variants, back_variants, copy_of)
@@ -419,8 +419,8 @@ export const up = (pgm) => {
  * @param run {() => void | undefined}
  * @returns {Promise<void> | void}
  */
-export const down = (pgm) => {
-  pgm.sql(
+export const down = async (pgm) => {
+  await pgm.db.query(
     `
     DELETE FROM cards.card;
   `,
