@@ -6,18 +6,23 @@ import {
   EXIST_CARD,
   EXIST_CARD_BY_SUB,
   EXIST_DESK,
+  EXIST_FOLDER_BY_SUB,
   GET_ARCHIVED_DESKS_BY_CREATOR_SUB,
+  GET_CARD,
   GET_CARD_SUBS_FOR_PLAY,
   GET_CARDS,
   GET_DESK_CARDS,
   GET_DESK_DETAILS,
   GET_DESK_SUBS_BY_CREATOR_SUB,
   GET_DESKS_BY_CREATOR_SUB,
+  GET_FOLDERS_BY_CREATOR_SUB,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
+  HAVE_ACCESS_TO_FOLDER,
   INSERT_CARD,
   INSERT_DESK,
   INSERT_DESK_SETTINGS,
+  INSERT_FOLDER,
   RESTORE_DESK,
   UPDATE_CARD,
   UPDATE_DESK,
@@ -26,6 +31,7 @@ import {
   UPDATE_LAST_TIME_PLAYED_DESK,
 } from './CardRepositoryQueries';
 import {
+  Folder,
   GetDeskCardsResult,
   GetDeskDetailsResult,
 } from '../../../../services/cards/card.interfaces';
@@ -336,6 +342,58 @@ export class CardRepository extends Table {
     }
   }
 
+  async createFolder(params: {
+    sub: string;
+    title: string;
+    description: string;
+    creatorSub: string;
+    parentFolderSub: string | null;
+  }) {
+    const query: Query = {
+      name: 'insertFolder',
+      text: INSERT_FOLDER,
+      values: [
+        params.sub,
+        params.title,
+        params.description,
+        params.creatorSub,
+        params.parentFolderSub,
+      ],
+    };
+
+    return this.insertItem(query);
+  }
+
+  async existFolderBySub(sub: string) {
+    const query: Query = {
+      name: 'existFolderBySub',
+      text: EXIST_FOLDER_BY_SUB,
+      values: [sub],
+    };
+
+    return this.exists(query);
+  }
+
+  async haveAccessToFolder(folderSub: string, userSub: string) {
+    const query: Query = {
+      name: 'haveAccessToFolder',
+      text: HAVE_ACCESS_TO_FOLDER,
+      values: [folderSub, userSub],
+    };
+
+    return this.exists(query);
+  }
+
+  async getFolders(creatorSub: string): Promise<Folder[]> {
+    const query: Query = {
+      name: 'getFoldersByCreatorSub',
+      text: GET_FOLDERS_BY_CREATOR_SUB,
+      values: [creatorSub],
+    };
+
+    return await this.getItems(query);
+  }
+
   async updateDesk(params: { desk_sub: string; payload: { title: string; description: string } }) {
     const query: Query = {
       name: 'updateDesk',
@@ -354,6 +412,22 @@ export class CardRepository extends Table {
     };
 
     return this.updateItems(query);
+  }
+
+  async getCard(card_sub: string) {
+    const query: Query = {
+      name: 'getCard',
+      text: GET_CARD,
+      values: [card_sub],
+    };
+
+    return this.getItem<{
+      sub: string;
+      created_at: string;
+      front_variants: string[];
+      back_variants: string[];
+      examples: string[];
+    }>(query);
   }
 
   async updateCard(params: { card_sub: string; payload: { front: string[]; back: string[] } }) {

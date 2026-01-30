@@ -30,7 +30,10 @@ exports.GET_USERS_WITH_DUE_CARDS = `
         ucs.user_sub,
             COUNT(*) as due_count
         FROM cards.user_card_srs ucs
-        WHERE ucs.next_review <= NOW()
+          INNER JOIN cards.card c ON c.sub = ucs.card_sub
+          INNER JOIN cards.desk d ON d.sub = c.desk_sub
+          WHERE ucs.next_review <= NOW()
+            AND d.status = 'active'
         GROUP BY ucs.user_sub
-        HAVING COUNT(*) >= 3
+        HAVING COUNT(*) >= 5
 `;

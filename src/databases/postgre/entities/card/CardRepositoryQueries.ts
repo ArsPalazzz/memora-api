@@ -50,6 +50,26 @@ export const UPDATE_CARD = `
   UPDATE cards.card SET front_variants = $2::jsonb, back_variants = $3::jsonb WHERE sub = $1;
 `;
 
+export const GET_CARD = `
+ SELECT 
+    c.sub,
+    c.created_at,
+    c.front_variants AS "front_variants",
+    c.back_variants AS "back_variants",
+    COALESCE(
+        array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
+        ARRAY[]::text[]
+    ) AS examples
+FROM cards.card c
+LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
+WHERE c.sub = $1
+GROUP BY 
+    c.sub, 
+    c.created_at, 
+    c.front_variants, 
+    c.back_variants;
+`;
+
 export const ARCHIVE_DESK = `
   UPDATE cards.desk SET status = 'archived' WHERE sub = $1;
 `;
@@ -64,6 +84,40 @@ export const DELETE_CARD = `
 
 export const INSERT_DESK = `
   INSERT INTO cards.desk (sub, title, description, public, creator_sub) VALUES ($1, $2, $3, $4, $5) RETURNING created_at;
+`;
+
+export const INSERT_FOLDER = `
+  INSERT INTO cards.folder (sub, title, description, creator_sub, parent_folder_sub) VALUES ($1, $2, $3, $4, $5) RETURNING created_at;
+`;
+
+export const EXIST_FOLDER_BY_SUB = `
+  SELECT EXISTS (SELECT 1 FROM cards.folder WHERE sub = $1);
+`;
+
+export const HAVE_ACCESS_TO_FOLDER = `
+  SELECT EXISTS (SELECT 1 FROM cards.folder WHERE sub = $1 AND creator_sub = $2);
+`;
+
+export const GET_FOLDERS_BY_CREATOR_SUB = `
+  SELECT 
+    f.sub,
+    f.title,
+    f.description,
+    f.parent_folder_sub AS "parentFolderSub",
+    f.created_at AS "createdAt",
+    COUNT(DISTINCT fd.desk_sub) AS "deskCount",
+    COUNT(DISTINCT fc.sub) AS "childCount"
+  FROM cards.folder f
+  LEFT JOIN cards.folder_desk fd ON fd.folder_sub = f.sub
+  LEFT JOIN cards.folder fc ON fc.parent_folder_sub = f.sub
+  WHERE f.creator_sub = $1
+  GROUP BY 
+    f.sub,
+    f.title,
+    f.description,
+    f.parent_folder_sub,
+    f.created_at
+  ORDER BY f.created_at ASC;
 `;
 
 export const INSERT_DESK_SETTINGS = `

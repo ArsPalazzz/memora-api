@@ -38,15 +38,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getCardsCtr = getCardsCtr;
 exports.getDesksCtr = getDesksCtr;
+exports.getArchivedDesksCtr = getArchivedDesksCtr;
 exports.getDeskSubsCtr = getDeskSubsCtr;
 exports.getDeskInfoCtr = getDeskInfoCtr;
+exports.getDeskCardsCtr = getDeskCardsCtr;
 exports.createCardCtr = createCardCtr;
+exports.createFolderCtr = createFolderCtr;
+exports.getFoldersCtr = getFoldersCtr;
 exports.createDeskCtr = createDeskCtr;
 exports.updateDeskCtr = updateDeskCtr;
 exports.updateFeedSettingsCtr = updateFeedSettingsCtr;
+exports.getCardCtr = getCardCtr;
 exports.updateCardCtr = updateCardCtr;
 exports.deleteCardCtr = deleteCardCtr;
 exports.archivedDeskCtr = archivedDeskCtr;
+exports.restoreDeskCtr = restoreDeskCtr;
 exports.updateDeskSettingsCtr = updateDeskSettingsCtr;
 const CardService_1 = __importDefault(require("../../../services/cards/CardService"));
 const UserService_1 = __importDefault(require("../../../services/users/UserService"));
@@ -54,6 +60,7 @@ const utils_1 = require("../../../utils");
 const http_errors_1 = __importDefault(require("http-errors"));
 const createCardDtoSchema = __importStar(require("./schemas/createCardDto.json"));
 const createDeskDtoSchema = __importStar(require("./schemas/createDeskDto.json"));
+const createFolderDtoSchema = __importStar(require("./schemas/createFolderDto.json"));
 const getDeskInfoDtoSchema = __importStar(require("./schemas/getDeskInfoDto.json"));
 const updateDeskSettingsBodyDtoSchema = __importStar(require("./schemas/updateDeskSettingsBodyDto.json"));
 const updateDeskSettingsParamsDtoSchema = __importStar(require("./schemas/updateDeskSettingsParamsDto.json"));
@@ -63,6 +70,7 @@ const updateCardBodyDtoSchema = __importStar(require("./schemas/updateCardBodyDt
 const updateDeskParamsDtoSchema = __importStar(require("./schemas/updateDeskParamsDto.json"));
 const validateCreateCardDto = utils_1.ajv.compile(createCardDtoSchema);
 const validateCreateDeskDto = utils_1.ajv.compile(createDeskDtoSchema);
+const validateCreateFolderDto = utils_1.ajv.compile(createFolderDtoSchema);
 const validateGetDeskInfoDto = utils_1.ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = utils_1.ajv.compile(updateDeskSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = utils_1.ajv.compile(updateDeskSettingsParamsDtoSchema);
@@ -83,6 +91,16 @@ async function getDesksCtr(req, res, next) {
     try {
         const creatorSub = res.locals.userSub;
         const desks = await CardService_1.default.getUserDesksWithStats(creatorSub);
+        res.json(desks);
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function getArchivedDesksCtr(req, res, next) {
+    try {
+        const creatorSub = res.locals.userSub;
+        const desks = await CardService_1.default.getArchivedDesksWithStats(creatorSub);
         res.json(desks);
     }
     catch (e) {
@@ -115,6 +133,22 @@ async function getDeskInfoCtr(req, res, next) {
         next(e);
     }
 }
+async function getDeskCardsCtr(req, res, next) {
+    try {
+        const params = { sub: req.params.sub };
+        if (!validateGetDeskInfoDto(params)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect desk params', {
+                errors: validateGetDeskInfoDto.errors,
+            }));
+        }
+        const creatorSub = res.locals.userSub;
+        const cards = await CardService_1.default.getCardsDesk({ sub: creatorSub, desk_sub: params.sub });
+        res.json(cards);
+    }
+    catch (e) {
+        next(e);
+    }
+}
 async function createCardCtr(req, res, next) {
     try {
         if (!validateCreateCardDto(req.body)) {
@@ -125,8 +159,40 @@ async function createCardCtr(req, res, next) {
         const payload = req.body;
         const creatorSub = res.locals.userSub;
         await UserService_1.default.existProfile({ sub: creatorSub });
-        await CardService_1.default.createCard(payload);
-        res.sendStatus(204);
+        const cardSub = await CardService_1.default.createCard(payload);
+        res.json({ sub: cardSub });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function createFolderCtr(req, res, next) {
+    try {
+        if (!validateCreateFolderDto(req.body)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect folder body', {
+                errors: validateCreateFolderDto.errors,
+            }));
+        }
+        const { title, description, parent_folder_sub } = req.body;
+        const creatorSub = res.locals.userSub;
+        await UserService_1.default.existProfile({ sub: creatorSub });
+        await CardService_1.default.createFolder({
+            title,
+            description,
+            parentFolderSub: parent_folder_sub,
+            creatorSub,
+        });
+        res.sendStatus(201);
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function getFoldersCtr(req, res, next) {
+    try {
+        const creatorSub = res.locals.userSub;
+        const folders = await CardService_1.default.getFolders(creatorSub);
+        res.status(200).json(folders);
     }
     catch (e) {
         next(e);
@@ -206,6 +272,26 @@ async function updateFeedSettingsCtr(req, res, next) {
         next(e);
     }
 }
+async function getCardCtr(req, res, next) {
+    try {
+        const params = { sub: req.params.sub };
+        if (!validateUpdateDeskParamsDto(params)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect card params', {
+                errors: validateUpdateDeskParamsDto.errors,
+            }));
+        }
+        const creatorSub = res.locals.userSub;
+        await UserService_1.default.existProfile({ sub: creatorSub });
+        const result = await CardService_1.default.getCard({
+            cardSub: params.sub,
+            creatorSub,
+        });
+        res.json(result);
+    }
+    catch (e) {
+        next(e);
+    }
+}
 async function updateCardCtr(req, res, next) {
     try {
         const params = { sub: req.params.sub };
@@ -265,6 +351,23 @@ async function archivedDeskCtr(req, res, next) {
         await UserService_1.default.existProfile({ sub: creatorSub });
         await CardService_1.default.archiveDesk({ deskSub: params.sub, creatorSub });
         res.json({ archived: true });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function restoreDeskCtr(req, res, next) {
+    try {
+        const params = { sub: req.params.sub };
+        if (!validateUpdateDeskParamsDto(params)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect desk params', {
+                errors: validateUpdateDeskParamsDto.errors,
+            }));
+        }
+        const creatorSub = res.locals.userSub;
+        await UserService_1.default.existProfile({ sub: creatorSub });
+        await CardService_1.default.restoreDesk({ deskSub: params.sub, creatorSub });
+        res.sendStatus(204);
     }
     catch (e) {
         next(e);

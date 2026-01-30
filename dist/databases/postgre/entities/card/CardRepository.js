@@ -69,6 +69,24 @@ class CardRepository extends Table_1.default {
             values: [userSub],
         };
         const result = await this.getItems(query);
+        return result
+            .filter((item) => item.status === 'active')
+            .map((item) => ({
+            ...item,
+            totalCards: parseInt(item.totalCards, 10) || 0,
+            newCards: parseInt(item.newCards, 10) || 0,
+            dueCards: parseInt(item.dueCards, 10) || 0,
+            learningCards: parseInt(item.learningCards, 10) || 0,
+            masteredCards: parseInt(item.masteredCards, 10) || 0,
+        }));
+    }
+    async getArchivedDesksByCreatorSub(userSub) {
+        const query = {
+            name: 'getArchivedDesksByCreatorSub',
+            text: CardRepositoryQueries_1.GET_ARCHIVED_DESKS_BY_CREATOR_SUB,
+            values: [userSub],
+        };
+        const result = await this.getItems(query);
         return result.map((item) => ({
             ...item,
             totalCards: parseInt(item.totalCards, 10) || 0,
@@ -93,6 +111,14 @@ class CardRepository extends Table_1.default {
             values: [params.deskSub, params.userSub],
         };
         return this.getItem(query);
+    }
+    async getDeskCards(params) {
+        const query = {
+            name: 'getDeskCards',
+            text: CardRepositoryQueries_1.GET_DESK_CARDS,
+            values: [params.deskSub],
+        };
+        return this.getItems(query);
     }
     async isDeskOwner(userSub, deskSub) {
         const query = {
@@ -202,6 +228,44 @@ class CardRepository extends Table_1.default {
             throw e;
         }
     }
+    async createFolder(params) {
+        const query = {
+            name: 'insertFolder',
+            text: CardRepositoryQueries_1.INSERT_FOLDER,
+            values: [
+                params.sub,
+                params.title,
+                params.description,
+                params.creatorSub,
+                params.parentFolderSub,
+            ],
+        };
+        return this.insertItem(query);
+    }
+    async existFolderBySub(sub) {
+        const query = {
+            name: 'existFolderBySub',
+            text: CardRepositoryQueries_1.EXIST_FOLDER_BY_SUB,
+            values: [sub],
+        };
+        return this.exists(query);
+    }
+    async haveAccessToFolder(folderSub, userSub) {
+        const query = {
+            name: 'haveAccessToFolder',
+            text: CardRepositoryQueries_1.HAVE_ACCESS_TO_FOLDER,
+            values: [folderSub, userSub],
+        };
+        return this.exists(query);
+    }
+    async getFolders(creatorSub) {
+        const query = {
+            name: 'getFoldersByCreatorSub',
+            text: CardRepositoryQueries_1.GET_FOLDERS_BY_CREATOR_SUB,
+            values: [creatorSub],
+        };
+        return await this.getItems(query);
+    }
     async updateDesk(params) {
         const query = {
             name: 'updateDesk',
@@ -217,6 +281,14 @@ class CardRepository extends Table_1.default {
             values: [params.cardOrientation, params.userSub],
         };
         return this.updateItems(query);
+    }
+    async getCard(card_sub) {
+        const query = {
+            name: 'getCard',
+            text: CardRepositoryQueries_1.GET_CARD,
+            values: [card_sub],
+        };
+        return this.getItem(query);
     }
     async updateCard(params) {
         const query = {
@@ -242,6 +314,14 @@ class CardRepository extends Table_1.default {
         const query = {
             name: 'archiveDesk',
             text: CardRepositoryQueries_1.ARCHIVE_DESK,
+            values: [params.desk_sub],
+        };
+        return this.updateItems(query);
+    }
+    async restoreDesk(params) {
+        const query = {
+            name: 'restoreDesk',
+            text: CardRepositoryQueries_1.RESTORE_DESK,
             values: [params.desk_sub],
         };
         return this.updateItems(query);

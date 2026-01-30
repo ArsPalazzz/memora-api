@@ -5,7 +5,7 @@ exports.EXIST_RECENT_BATCH = `
    SELECT EXISTS (SELECT 1
         FROM reviews.review_batch rb
         WHERE rb.user_sub = $1
-        AND rb.created_at > NOW() - INTERVAL '2 hours'
+        AND rb.created_at > NOW() - INTERVAL '3 hours'
         LIMIT 1);
 `;
 exports.CREATE_BATCH = `

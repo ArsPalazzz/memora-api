@@ -165,7 +165,7 @@ class GameService {
         }
         const shownCardSubs = await this.getShownCardsInSession(userSub, sessionId);
         const userPreferences = await this.getUserTopicPreferences(userSub);
-        const limit = shownCardSubs.length === 0 ? 2 : 1;
+        const limit = shownCardSubs.length === 0 ? 5 : 1;
         const feedSettings = await this.cardService.getFeedSettingsByUserSub(userSub);
         const cards = await this.cardService.getCardForFeed({
             userSub,

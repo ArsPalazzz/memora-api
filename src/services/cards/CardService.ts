@@ -10,9 +10,10 @@ import userCardSrsRepository, {
 import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
 import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT } from './card.const';
-import { GetDeskPayload } from './card.interfaces';
+import { Folder, FolderTree, GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 import { GoogleGenAI } from '@google/genai';
+import { v4 as uuidv4 } from 'uuid';
 import cardExampleRepository, {
   CardExampleRepository,
 } from '../../databases/postgre/entities/card/CardExampleRepository';
@@ -319,7 +320,9 @@ export class CardService {
     const sub = uuidV4();
     await this.cardRepository.createCard({ sub, ...payload });
 
-    await this.generateExamples(sub, payload.front, payload.back);
+    this.generateExamples(sub, payload.front, payload.back);
+
+    return sub;
   }
 
   async createDesk(payload: {
@@ -338,6 +341,70 @@ export class CardService {
       public: payload.public,
       created_at,
     };
+  }
+
+  async createFolder(payload: {
+    title: string;
+    description: string;
+    parentFolderSub: string | null;
+    creatorSub: string;
+  }) {
+    const sub = uuidv4();
+
+    if (!payload.parentFolderSub) {
+      return await this.cardRepository.createFolder({ sub, ...payload });
+    }
+
+    const exists = await this.cardRepository.existFolderBySub(payload.parentFolderSub);
+    if (!exists) {
+      throw new Error(`Folder with sub = ${payload.parentFolderSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToFolder(
+      payload.parentFolderSub,
+      payload.creatorSub
+    );
+    if (!haveAccess) {
+      throw new Error(
+        `User with sub = ${payload.creatorSub} don't have access to folder with sub = ${payload.parentFolderSub}`
+      );
+    }
+
+    await this.cardRepository.createFolder({ sub, ...payload });
+  }
+
+  async getFolders(creatorSub: string): Promise<FolderTree[]> {
+    const folders = await this.cardRepository.getFolders(creatorSub);
+    return this.buildFolderTree(folders);
+  }
+
+  private buildFolderTree(folders: Folder[]): FolderTree[] {
+    const folderMap = new Map<string, FolderTree>();
+    const rootFolders: FolderTree[] = [];
+
+    folders.forEach((folder) => {
+      folderMap.set(folder.sub, {
+        ...folder,
+        children: [],
+      });
+    });
+
+    folders.forEach((folder) => {
+      const node = folderMap.get(folder.sub)!;
+
+      if (folder.parentFolderSub) {
+        const parent = folderMap.get(folder.parentFolderSub);
+        if (parent) {
+          parent.children!.push(node);
+        } else {
+          rootFolders.push(node);
+        }
+      } else {
+        rootFolders.push(node);
+      }
+    });
+
+    return rootFolders;
   }
 
   async updateDesk(payload: {
@@ -380,6 +447,31 @@ export class CardService {
       userSub: creatorSub,
       cardOrientation,
     });
+  }
+
+  async getCard(payload: { cardSub: string; creatorSub: string }) {
+    const { cardSub, creatorSub } = payload;
+    const exist = await this.cardRepository.existCardBySub({ sub: cardSub });
+    if (!exist) {
+      throw new NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToCard({
+      user_sub: creatorSub,
+      card_sub: cardSub,
+    });
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `CardService: user with sub = ${creatorSub} cannot update card with sub = ${cardSub}`
+      );
+    }
+
+    const res = await this.cardRepository.getCard(cardSub);
+    if (!res) {
+      throw new NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+    }
+
+    return res;
   }
 
   async updateCard(payload: {

@@ -10,6 +10,7 @@ const UserCardSrsRepository_1 = __importDefault(require("../../databases/postgre
 const exceptions_1 = require("../../exceptions");
 const uuid_1 = require("uuid");
 const genai_1 = require("@google/genai");
+const uuid_2 = require("uuid");
 const CardExampleRepository_1 = __importDefault(require("../../databases/postgre/entities/card/CardExampleRepository"));
 const GameSessionRepository_1 = __importDefault(require("../../databases/postgre/entities/game/GameSessionRepository"));
 const UserCardPreferencesRepository_1 = __importDefault(require("../../databases/postgre/entities/game/UserCardPreferencesRepository"));
@@ -180,6 +181,9 @@ class CardService {
     async getUserDesksWithStats(userSub) {
         return await this.cardRepository.getDesksByCreatorSub(userSub);
     }
+    async getArchivedDesksWithStats(userSub) {
+        return await this.cardRepository.getArchivedDesksByCreatorSub(userSub);
+    }
     async getUserDeskShort(userSub) {
         return await this.cardRepository.getDeskShortByCreatorSub(userSub);
     }
@@ -196,11 +200,24 @@ class CardService {
         const deskInfo = await this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub });
         if (!deskInfo)
             return;
-        const { stats, ...rest } = deskInfo;
+        const { stats, cards, ...rest } = deskInfo;
+        const limitedCards = cards.slice(0, 20);
         const weeklyStats = await this.gameSessionRepository.getWeeklyDeskStats(sub, desk_sub);
         if (!weeklyStats)
             return;
-        return { ...rest, stats: { ...stats, weeklyStats } };
+        return { ...rest, cards: limitedCards, stats: { ...stats, weeklyStats } };
+    }
+    async getCardsDesk(payload) {
+        const { desk_sub, sub } = payload;
+        const exist = await this.cardRepository.existDesk({ sub: desk_sub });
+        if (!exist) {
+            throw new exceptions_1.NotFoundError(`CardService: desk with sub = ${desk_sub} not found`);
+        }
+        const haveAccess = await this.cardRepository.haveAccessToDesk({ desk_sub, user_sub: sub });
+        if (!haveAccess) {
+            throw new exceptions_1.ForbiddenError(`CardService: user with sub = ${sub} doesn't have access to desk with id = ${desk_sub}`);
+        }
+        return await this.cardRepository.getDeskCards({ deskSub: desk_sub });
     }
     async createCard(payload) {
         const deskExist = await this.cardRepository.existDesk({ sub: payload.desk_sub });
@@ -209,7 +226,8 @@ class CardService {
         }
         const sub = (0, uuid_1.v4)();
         await this.cardRepository.createCard({ sub, ...payload });
-        await this.generateExamples(sub, payload.front, payload.back);
+        this.generateExamples(sub, payload.front, payload.back);
+        return sub;
     }
     async createDesk(payload) {
         const created_at = await this.cardRepository.createDesk(payload);
@@ -220,6 +238,54 @@ class CardService {
             public: payload.public,
             created_at,
         };
+    }
+    async createFolder(payload) {
+        const sub = (0, uuid_2.v4)();
+        if (!payload.parentFolderSub) {
+            return await this.cardRepository.createFolder({ sub, ...payload });
+        }
+        const exists = await this.cardRepository.existFolderBySub(payload.parentFolderSub);
+        if (!exists) {
+            throw new Error(`Folder with sub = ${payload.parentFolderSub} not found`);
+        }
+        const haveAccess = await this.cardRepository.haveAccessToFolder(payload.parentFolderSub, payload.creatorSub);
+        if (!haveAccess) {
+            throw new Error(`User with sub = ${payload.creatorSub} don't have access to folder with sub = ${payload.parentFolderSub}`);
+        }
+        await this.cardRepository.createFolder({ sub, ...payload });
+    }
+    async getFolders(creatorSub) {
+        const folders = await this.cardRepository.getFolders(creatorSub);
+        return this.buildFolderTree(folders);
+    }
+    buildFolderTree(folders) {
+        const folderMap = new Map();
+        const rootFolders = [];
+        // Сначала создаем все ноды
+        folders.forEach((folder) => {
+            folderMap.set(folder.sub, {
+                ...folder,
+                children: [],
+            });
+        });
+        // Затем строим дерево
+        folders.forEach((folder) => {
+            const node = folderMap.get(folder.sub);
+            if (folder.parentFolderSub) {
+                const parent = folderMap.get(folder.parentFolderSub);
+                if (parent) {
+                    parent.children.push(node);
+                }
+                else {
+                    // Если родитель не найден (возможно был удален), считаем корневым
+                    rootFolders.push(node);
+                }
+            }
+            else {
+                rootFolders.push(node);
+            }
+        });
+        return rootFolders;
     }
     async updateDesk(payload) {
         const { deskSub, body, creatorSub } = payload;
@@ -249,6 +315,25 @@ class CardService {
             userSub: creatorSub,
             cardOrientation,
         });
+    }
+    async getCard(payload) {
+        const { cardSub, creatorSub } = payload;
+        const exist = await this.cardRepository.existCardBySub({ sub: cardSub });
+        if (!exist) {
+            throw new exceptions_1.NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+        }
+        const haveAccess = await this.cardRepository.haveAccessToCard({
+            user_sub: creatorSub,
+            card_sub: cardSub,
+        });
+        if (!haveAccess) {
+            throw new exceptions_1.ForbiddenError(`CardService: user with sub = ${creatorSub} cannot update card with sub = ${cardSub}`);
+        }
+        const res = await this.cardRepository.getCard(cardSub);
+        if (!res) {
+            throw new exceptions_1.NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+        }
+        return res;
     }
     async updateCard(payload) {
         const { cardSub, body, creatorSub } = payload;
@@ -303,6 +388,21 @@ class CardService {
             throw new exceptions_1.ForbiddenError(`CardService: user with sub = ${creatorSub} cannot update desk settings with desk sub = ${deskSub}`);
         }
         await this.cardRepository.archiveDesk({ desk_sub: deskSub });
+    }
+    async restoreDesk(payload) {
+        const { deskSub, creatorSub } = payload;
+        const exist = await this.cardRepository.existDesk({ sub: deskSub });
+        if (!exist) {
+            throw new exceptions_1.NotFoundError(`CardService: desk with sub = ${deskSub} not found`);
+        }
+        const haveAccess = await this.cardRepository.haveAccessToDesk({
+            user_sub: creatorSub,
+            desk_sub: deskSub,
+        });
+        if (!haveAccess) {
+            throw new exceptions_1.ForbiddenError(`CardService: user with sub = ${creatorSub} don't have access to desk with sub = ${deskSub}`);
+        }
+        await this.cardRepository.restoreDesk({ desk_sub: deskSub });
     }
     async updateSrs(userSub, cardSub, quality) {
         const prevSrs = await this.userCardSrsRepository.get(userSub, cardSub);

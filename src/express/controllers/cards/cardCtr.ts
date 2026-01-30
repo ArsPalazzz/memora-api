@@ -6,6 +6,7 @@ import createError from 'http-errors';
 
 import * as createCardDtoSchema from './schemas/createCardDto.json';
 import * as createDeskDtoSchema from './schemas/createDeskDto.json';
+import * as createFolderDtoSchema from './schemas/createFolderDto.json';
 import * as getDeskInfoDtoSchema from './schemas/getDeskInfoDto.json';
 import * as updateDeskSettingsBodyDtoSchema from './schemas/updateDeskSettingsBodyDto.json';
 import * as updateDeskSettingsParamsDtoSchema from './schemas/updateDeskSettingsParamsDto.json';
@@ -17,6 +18,7 @@ import { CARD_ORIENTATION } from '../../../services/cards/card.const';
 
 const validateCreateCardDto = ajv.compile(createCardDtoSchema);
 const validateCreateDeskDto = ajv.compile(createDeskDtoSchema);
+const validateCreateFolderDto = ajv.compile(createFolderDtoSchema);
 const validateGetDeskInfoDto = ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = ajv.compile(updateDeskSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = ajv.compile(updateDeskSettingsParamsDtoSchema);
@@ -124,8 +126,53 @@ export async function createCardCtr(req: Request, res: Response, next: NextFunct
 
     await userService.existProfile({ sub: creatorSub });
 
-    await cardService.createCard(payload);
-    res.sendStatus(204);
+    const cardSub = await cardService.createCard(payload);
+    res.json({ sub: cardSub });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function createFolderCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    if (!validateCreateFolderDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect folder body', {
+          errors: validateCreateFolderDto.errors,
+        })
+      );
+    }
+
+    const { title, description, parent_folder_sub } = req.body as {
+      title: string;
+      description: string;
+      parent_folder_sub: string | null;
+    };
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    await cardService.createFolder({
+      title,
+      description,
+      parentFolderSub: parent_folder_sub,
+      creatorSub,
+    });
+
+    res.sendStatus(201);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getFoldersCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const creatorSub = res.locals.userSub as string;
+
+    const folders = await cardService.getFolders(creatorSub);
+
+    res.status(200).json(folders);
   } catch (e) {
     next(e);
   }
@@ -226,6 +273,33 @@ export async function updateFeedSettingsCtr(req: Request, res: Response, next: N
     });
 
     res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getCardCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect card params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    const result = await cardService.getCard({
+      cardSub: params.sub,
+      creatorSub,
+    });
+
+    res.json(result);
   } catch (e) {
     next(e);
   }
