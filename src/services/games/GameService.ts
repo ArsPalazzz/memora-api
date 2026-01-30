@@ -29,7 +29,7 @@ export class GameService {
 
       const deskSettings = await this.cardService.getDeskSettings(deskSub);
       if (!deskSettings) {
-        throw new Error('Desk settings not found');
+        throw new Error('Deck settings not found');
       }
 
       const { cards_per_session, card_orientation } = deskSettings;
@@ -313,7 +313,7 @@ export class GameService {
   async addCardToDesk(userSub: string, cardSub: string, deskSubs: string[]) {
     const isOwner = await this.cardService.isDesksOwner(userSub, deskSubs);
     if (!isOwner) {
-      throw new ForbiddenError('You are not the owner of desk/desks');
+      throw new ForbiddenError('You are not the owner of deck/decks');
     }
 
     await this.cardService.cloneCardToDesks(cardSub, deskSubs);
