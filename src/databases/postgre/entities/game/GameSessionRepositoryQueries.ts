@@ -108,6 +108,23 @@ export const GET_NEXT_UNANSWERED_CARD = `
   LIMIT 1;
 `;
 
+export const GET_CARD_IN_SESSION_BY_SUB = `
+  SELECT
+    sc.id            AS "sessionCardId",
+    sc.card_sub AS "cardSub",
+    sc.direction,
+    c.front_variants AS "frontVariants",
+    c.back_variants AS "backVariants"
+  FROM games.session_card sc
+  JOIN games.session s ON s.id = sc.session_id
+  JOIN cards.card c ON c.sub = sc.card_sub
+    WHERE sc.session_id = $1
+      AND s.user_sub = $2
+      AND sc.card_sub = $3
+  ORDER BY sc.id
+  LIMIT 1;
+`;
+
 export const SAVE_ANSWER = `
   UPDATE games.session_card
   SET

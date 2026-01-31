@@ -37,3 +37,14 @@ export const GET_LAST_ANSWERED_CARD = `
   ORDER BY sc.answered_at DESC
   LIMIT 1;
 `;
+
+export const GET_CARD_IN_GAME_SESSION_BY_SUB2 = `
+  SELECT
+    sc.card_sub AS "cardSub",
+    sc.quality
+  FROM games.session_card sc
+  WHERE sc.session_id = $1
+    AND sc.card_sub = $2
+  ORDER BY sc.answered_at DESC
+  LIMIT 1;
+`;

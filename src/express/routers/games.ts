@@ -12,6 +12,8 @@ import {
   swipeCardCtr,
   feedNextCardCtr,
   cardShownCtr,
+  answerInFeedSessionCtr,
+  gradeCardInFeedCtr,
 } from '../controllers/games/gameCtr';
 
 const games = Router();
@@ -26,6 +28,8 @@ games.post('/games/finish', tokenValidator, finishGameSessionCtr);
 games.post('/games/start-feed-session', tokenValidator, startFeedSessionCtr);
 games.post('/games/swipe', tokenValidator, swipeCardCtr);
 games.get('/games/feed-next', tokenValidator, feedNextCardCtr);
+games.post('/games/answer-feed/:sub', tokenValidator, answerInFeedSessionCtr);
+games.post('/games/grade-feed/:sub', tokenValidator, gradeCardInFeedCtr);
 games.post('/games/card-shown', tokenValidator, cardShownCtr);
 games.post('/games/add-to-desk', tokenValidator, addCardToDeskCtr);
 

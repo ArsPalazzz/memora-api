@@ -4,6 +4,7 @@ import createError from 'http-errors';
 import * as startDeskSessionBodyDtoSchema from './schemas/startDeskSessionBodyDto.json';
 import * as startReviewSessionBodyDtoSchema from './schemas/startReviewSessionBodyDto.json';
 import * as answerInGameSessionBodyDtoSchema from './schemas/answerInGameSessionBodyDto.json';
+import * as answerFeedParamsDtoSchema from './schemas/answerFeedParamsDto.json';
 import * as gradeCardInGameSessionBodyDtoSchema from './schemas/gradeCardInGameSessionBodyDto.json';
 import * as getNextCardBodyDtoSchema from './schemas/getNextCardBodyDto.json';
 import { ajv } from '../../../utils';
@@ -12,6 +13,7 @@ import gameService from '../../../services/games/GameService';
 const validateStartDeskSessionBodyDto = ajv.compile(startDeskSessionBodyDtoSchema);
 const validateStartReviewSessionBodyDto = ajv.compile(startReviewSessionBodyDtoSchema);
 const validateAnswerInGameSessionBodyDto = ajv.compile(answerInGameSessionBodyDtoSchema);
+const validateAnswerFeedParamsDto = ajv.compile(answerFeedParamsDtoSchema);
 const validateGradeCardInGameSessionBodyDto = ajv.compile(gradeCardInGameSessionBodyDtoSchema);
 const validateGetNextCardBodyDto = ajv.compile(getNextCardBodyDtoSchema);
 
@@ -85,6 +87,43 @@ export async function answerInGameSessionCtr(req: Request, res: Response, next: 
   }
 }
 
+export async function answerInFeedSessionCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    const userSub = res.locals.userSub as string;
+
+    if (!validateAnswerFeedParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect answer in feed params', {
+          errors: validateAnswerFeedParamsDto.errors,
+        })
+      );
+    }
+
+    if (!validateAnswerInGameSessionBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect answer in feed body', {
+          errors: validateAnswerInGameSessionBodyDto.errors,
+        })
+      );
+    }
+
+    const { sessionId, answer } = req.body as { sessionId: string; answer: string };
+
+    const result = await gameService.answerFeedCard({
+      sessionId,
+      cardSub: params.sub,
+      userSub,
+      answer,
+    });
+
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function gradeCardInGameSessionCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const userSub = res.locals.userSub as string;
@@ -100,6 +139,38 @@ export async function gradeCardInGameSessionCtr(req: Request, res: Response, nex
     const { sessionId, quality } = req.body as { sessionId: string; quality: number };
 
     await gameService.gradeCard({ sessionId, userSub, quality });
+
+    res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function gradeCardInFeedCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    const userSub = res.locals.userSub as string;
+
+    if (!validateAnswerFeedParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect grade card in feed params', {
+          errors: validateAnswerFeedParamsDto.errors,
+        })
+      );
+    }
+
+    if (!validateGradeCardInGameSessionBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect grade card in feed body', {
+          errors: validateGradeCardInGameSessionBodyDto.errors,
+        })
+      );
+    }
+
+    const { sessionId, quality } = req.body as { sessionId: string; quality: number };
+
+    await gameService.gradeCardInFeed({ sessionId, userSub, quality, cardSub: params.sub });
 
     res.sendStatus(204);
   } catch (e) {

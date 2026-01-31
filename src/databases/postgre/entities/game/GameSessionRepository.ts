@@ -12,6 +12,7 @@ import {
   HAVE_ACCESS_TO_SESSION,
   IS_SESSION_ACTIVE,
   SAVE_ANSWER,
+  GET_CARD_IN_SESSION_BY_SUB,
 } from './GameSessionRepositoryQueries';
 import { GetWeeklyDeskStats } from '../../../../services/games/game.interfaces';
 
@@ -131,6 +132,22 @@ export class GameSessionRepository extends Table {
       name: 'getNextUnansweredCard',
       text: GET_NEXT_UNANSWERED_CARD,
       values: [params.sessionId, params.userSub],
+    };
+
+    return this.getItem<{
+      sessionCardId: number;
+      cardSub: string;
+      direction: string;
+      frontVariants: string[];
+      backVariants: string[];
+    }>(query);
+  }
+
+  async getCardInSessionBySub(params: { sessionId: string; userSub: string; cardSub: string }) {
+    const query: Query = {
+      name: 'getCardInSessionBySub',
+      text: GET_CARD_IN_SESSION_BY_SUB,
+      values: [params.sessionId, params.userSub, params.cardSub],
     };
 
     return this.getItem<{

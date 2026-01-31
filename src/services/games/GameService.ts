@@ -173,6 +173,76 @@ export class GameService {
     };
   }
 
+  async answerFeedCard(params: {
+    sessionId: string;
+    cardSub: string;
+    userSub: string;
+    answer: string;
+  }) {
+    const { sessionId, cardSub, userSub, answer } = params;
+
+    const exist = await this.gameSessionRepository.existBySessionId(sessionId);
+    if (!exist) {
+      throw new NotFoundError(`Game session with id = ${sessionId} not found`);
+    }
+
+    const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `User with sub = ${userSub} don't have access to game session with id = ${sessionId}`
+      );
+    }
+
+    const isActive = await this.gameSessionRepository.isActive(sessionId);
+    if (!isActive) {
+      throw new BadRequestError(`Session with id = ${sessionId} is not active`);
+    }
+
+    const card = await this.gameSessionRepository.getCardInSessionBySub({
+      sessionId,
+      userSub,
+      cardSub,
+    });
+
+    if (!card) {
+      throw new NotFoundError(
+        `Card with sub = ${cardSub} not found in session with id = ${sessionId}`
+      );
+    }
+
+    const { sessionCardId, direction, frontVariants, backVariants } = card;
+
+    const correctVariants: string[] = direction === 'front_to_back' ? backVariants : frontVariants;
+
+    const normalizedAnswer = this.normalize(answer);
+
+    const isCorrect = correctVariants.some(
+      (variant) => this.normalize(variant) === normalizedAnswer
+    );
+
+    await this.gameSessionRepository.saveAnswer({
+      sessionCardId,
+      answer,
+      isCorrect,
+    });
+
+    if (isCorrect) {
+      const userId = await this.userService.getProfileId(userSub);
+      await this.userService.addCardInDaily(userId);
+    }
+
+    const hasMore = await this.gameSessionRepository.hasUnansweredCards(sessionId);
+    if (!hasMore) {
+      await this.gameSessionRepository.finish(sessionId);
+    }
+
+    return {
+      isCorrect,
+      finished: !hasMore,
+      correctVariants,
+    };
+  }
+
   async gradeCard(params: { sessionId: string; userSub: string; quality: number }) {
     const { sessionId, userSub, quality } = params;
 
@@ -186,6 +256,26 @@ export class GameService {
     if (!lastCard) throw new BadRequestError('No answered card to grade');
 
     await cardService.updateSrs(userSub, lastCard.cardSub, quality);
+  }
+
+  async gradeCardInFeed(params: {
+    sessionId: string;
+    userSub: string;
+    quality: number;
+    cardSub: string;
+  }) {
+    const { sessionId, userSub, quality, cardSub } = params;
+
+    const exist = await this.gameSessionRepository.existBySessionId(sessionId);
+    if (!exist) throw new NotFoundError('Session not found');
+
+    const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
+    if (!haveAccess) throw new ForbiddenError('No access to session');
+
+    const card = await this.gameSessionCardRepository.getCardInSessionBySub(sessionId, cardSub);
+    if (!card) throw new BadRequestError('No answered card to grade');
+
+    await cardService.updateSrs(userSub, card.cardSub, quality);
   }
 
   async finishGameSession(params: { sessionId: string; userSub: string }) {
