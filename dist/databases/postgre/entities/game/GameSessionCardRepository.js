@@ -52,6 +52,14 @@ class GameSessionCardRepository extends Table_1.default {
         };
         return this.getItem(query);
     }
+    async getCardInSessionBySub(sessionId, cardSub) {
+        const query = {
+            name: 'getCardInSessionBySub2',
+            text: GameSessionCardRepositoryQueries_1.GET_CARD_IN_GAME_SESSION_BY_SUB2,
+            values: [sessionId, cardSub],
+        };
+        return this.getItem(query);
+    }
 }
 exports.GameSessionCardRepository = GameSessionCardRepository;
 exports.default = new GameSessionCardRepository();

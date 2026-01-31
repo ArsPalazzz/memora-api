@@ -15,5 +15,7 @@ games.post('/games/finish', middlewares_1.tokenValidator, gameCtr_1.finishGameSe
 games.post('/games/start-feed-session', middlewares_1.tokenValidator, gameCtr_1.startFeedSessionCtr);
 games.post('/games/swipe', middlewares_1.tokenValidator, gameCtr_1.swipeCardCtr);
 games.get('/games/feed-next', middlewares_1.tokenValidator, gameCtr_1.feedNextCardCtr);
+games.post('/games/answer-feed/:sub', middlewares_1.tokenValidator, gameCtr_1.answerInFeedSessionCtr);
+games.post('/games/grade-feed/:sub', middlewares_1.tokenValidator, gameCtr_1.gradeCardInFeedCtr);
 games.post('/games/card-shown', middlewares_1.tokenValidator, gameCtr_1.cardShownCtr);
 games.post('/games/add-to-desk', middlewares_1.tokenValidator, gameCtr_1.addCardToDeskCtr);

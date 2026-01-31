@@ -39,7 +39,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.startDeskSessionCtr = startDeskSessionCtr;
 exports.startReviewSessionCtr = startReviewSessionCtr;
 exports.answerInGameSessionCtr = answerInGameSessionCtr;
+exports.answerInFeedSessionCtr = answerInFeedSessionCtr;
 exports.gradeCardInGameSessionCtr = gradeCardInGameSessionCtr;
+exports.gradeCardInFeedCtr = gradeCardInFeedCtr;
 exports.getNextCardCtr = getNextCardCtr;
 exports.finishGameSessionCtr = finishGameSessionCtr;
 exports.startFeedSessionCtr = startFeedSessionCtr;
@@ -51,6 +53,7 @@ const http_errors_1 = __importDefault(require("http-errors"));
 const startDeskSessionBodyDtoSchema = __importStar(require("./schemas/startDeskSessionBodyDto.json"));
 const startReviewSessionBodyDtoSchema = __importStar(require("./schemas/startReviewSessionBodyDto.json"));
 const answerInGameSessionBodyDtoSchema = __importStar(require("./schemas/answerInGameSessionBodyDto.json"));
+const answerFeedParamsDtoSchema = __importStar(require("./schemas/answerFeedParamsDto.json"));
 const gradeCardInGameSessionBodyDtoSchema = __importStar(require("./schemas/gradeCardInGameSessionBodyDto.json"));
 const getNextCardBodyDtoSchema = __importStar(require("./schemas/getNextCardBodyDto.json"));
 const utils_1 = require("../../../utils");
@@ -58,6 +61,7 @@ const GameService_1 = __importDefault(require("../../../services/games/GameServi
 const validateStartDeskSessionBodyDto = utils_1.ajv.compile(startDeskSessionBodyDtoSchema);
 const validateStartReviewSessionBodyDto = utils_1.ajv.compile(startReviewSessionBodyDtoSchema);
 const validateAnswerInGameSessionBodyDto = utils_1.ajv.compile(answerInGameSessionBodyDtoSchema);
+const validateAnswerFeedParamsDto = utils_1.ajv.compile(answerFeedParamsDtoSchema);
 const validateGradeCardInGameSessionBodyDto = utils_1.ajv.compile(gradeCardInGameSessionBodyDtoSchema);
 const validateGetNextCardBodyDto = utils_1.ajv.compile(getNextCardBodyDtoSchema);
 async function startDeskSessionCtr(req, res, next) {
@@ -112,6 +116,33 @@ async function answerInGameSessionCtr(req, res, next) {
         next(e);
     }
 }
+async function answerInFeedSessionCtr(req, res, next) {
+    try {
+        const params = { sub: req.params.sub };
+        const userSub = res.locals.userSub;
+        if (!validateAnswerFeedParamsDto(params)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect answer in feed params', {
+                errors: validateAnswerFeedParamsDto.errors,
+            }));
+        }
+        if (!validateAnswerInGameSessionBodyDto(req.body)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect answer in feed body', {
+                errors: validateAnswerInGameSessionBodyDto.errors,
+            }));
+        }
+        const { sessionId, answer } = req.body;
+        const result = await GameService_1.default.answerFeedCard({
+            sessionId,
+            cardSub: params.sub,
+            userSub,
+            answer,
+        });
+        res.json(result);
+    }
+    catch (e) {
+        next(e);
+    }
+}
 async function gradeCardInGameSessionCtr(req, res, next) {
     try {
         const userSub = res.locals.userSub;
@@ -122,6 +153,28 @@ async function gradeCardInGameSessionCtr(req, res, next) {
         }
         const { sessionId, quality } = req.body;
         await GameService_1.default.gradeCard({ sessionId, userSub, quality });
+        res.sendStatus(204);
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function gradeCardInFeedCtr(req, res, next) {
+    try {
+        const params = { sub: req.params.sub };
+        const userSub = res.locals.userSub;
+        if (!validateAnswerFeedParamsDto(params)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect grade card in feed params', {
+                errors: validateAnswerFeedParamsDto.errors,
+            }));
+        }
+        if (!validateGradeCardInGameSessionBodyDto(req.body)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect grade card in feed body', {
+                errors: validateGradeCardInGameSessionBodyDto.errors,
+            }));
+        }
+        const { sessionId, quality } = req.body;
+        await GameService_1.default.gradeCardInFeed({ sessionId, userSub, quality, cardSub: params.sub });
         res.sendStatus(204);
     }
     catch (e) {

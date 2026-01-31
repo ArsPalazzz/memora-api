@@ -106,6 +106,14 @@ class GameSessionRepository extends Table_1.default {
         };
         return this.getItem(query);
     }
+    async getCardInSessionBySub(params) {
+        const query = {
+            name: 'getCardInSessionBySub',
+            text: GameSessionRepositoryQueries_1.GET_CARD_IN_SESSION_BY_SUB,
+            values: [params.sessionId, params.userSub, params.cardSub],
+        };
+        return this.getItem(query);
+    }
     async saveAnswer(params) {
         const query = {
             name: 'saveAnswer',

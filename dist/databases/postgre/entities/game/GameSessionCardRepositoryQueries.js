@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GET_LAST_ANSWERED_CARD = exports.GET_NEXT_IN_SESSION_CARD = exports.CREATE_GAME_SESSION_CARD = void 0;
+exports.GET_CARD_IN_GAME_SESSION_BY_SUB2 = exports.GET_LAST_ANSWERED_CARD = exports.GET_NEXT_IN_SESSION_CARD = exports.CREATE_GAME_SESSION_CARD = void 0;
 exports.CREATE_GAME_SESSION_CARD = `
   INSERT INTO games.session_card(session_id, card_sub, direction, created_at)
     VALUES($1,$2,$3,NOW())`;
@@ -35,6 +35,16 @@ exports.GET_LAST_ANSWERED_CARD = `
   FROM games.session_card sc
   WHERE sc.session_id = $1
     AND sc.answered_at IS NOT NULL
+  ORDER BY sc.answered_at DESC
+  LIMIT 1;
+`;
+exports.GET_CARD_IN_GAME_SESSION_BY_SUB2 = `
+  SELECT
+    sc.card_sub AS "cardSub",
+    sc.quality
+  FROM games.session_card sc
+  WHERE sc.session_id = $1
+    AND sc.card_sub = $2
   ORDER BY sc.answered_at DESC
   LIMIT 1;
 `;
