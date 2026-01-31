@@ -58086,31 +58086,105 @@ export const up = async (pgm) => {
     },
   ];
 
-  for (const card of cardsWithExamples) {
-    const {
-      rows: [{ sub }],
-    } = await pgm.db.query(
+  // for (const card of cardsWithExamples) {
+  //   const {
+  //     rows: [{ sub }],
+  //   } = await pgm.db.query(
+  //     `
+  //     INSERT INTO cards.card
+  //       (sub, desk_sub, front_variants, back_variants, copy_of)
+  //     VALUES
+  //       (gen_random_uuid(), $1, $2::jsonb, $3::jsonb, NULL)
+  //     RETURNING sub
+  //     `,
+  //     [deskSub, JSON.stringify(card.front), JSON.stringify(card.back)]
+  //   );
+
+  //   for (const sentence of card.examples) {
+  //     await pgm.db.query(
+  //       `
+  //       INSERT INTO cards.card_examples
+  //         (card_sub, sentence)
+  //       VALUES
+  //         ($1, $2)
+  //       `,
+  //       [sub, sentence]
+  //     );
+  //   }
+  // }
+
+  const cardBatchSize = 200;
+  const allCards = [];
+  const allExamples = [];
+
+  for (let i = 0; i < cardsWithExamples.length; i += cardBatchSize) {
+    const batch = cardsWithExamples.slice(i, i + cardBatchSize);
+    const cardValues = [];
+    const cardParams = [];
+    let paramCount = 1;
+
+    for (const card of batch) {
+      cardValues.push(
+        `($${paramCount}, $${paramCount + 1}, $${paramCount + 2}::jsonb, $${paramCount + 3}::jsonb, NULL)`
+      );
+      cardParams.push(deskSub, JSON.stringify(card.front), JSON.stringify(card.back));
+      paramCount += 3;
+    }
+
+    const result = await pgm.db.query(
       `
       INSERT INTO cards.card
         (sub, desk_sub, front_variants, back_variants, copy_of)
-      VALUES
-        (gen_random_uuid(), $1, $2::jsonb, $3::jsonb, NULL)
+      SELECT 
+        gen_random_uuid(), 
+        vals.desk_sub, 
+        vals.front_variants::jsonb, 
+        vals.back_variants::jsonb, 
+        NULL
+      FROM unnest($1::uuid[], $2::jsonb[], $3::jsonb[]) AS vals(desk_sub, front_variants, back_variants)
       RETURNING sub
-      `,
-      [deskSub, JSON.stringify(card.front), JSON.stringify(card.back)]
+    `,
+      [
+        Array(batch.length).fill(deskSub),
+        batch.map((c) => JSON.stringify(c.front)),
+        batch.map((c) => JSON.stringify(c.back)),
+      ]
     );
 
-    for (const sentence of card.examples) {
-      await pgm.db.query(
-        `
-        INSERT INTO cards.card_examples
-          (card_sub, sentence)
-        VALUES
-          ($1, $2)
-        `,
-        [sub, sentence]
-      );
+    const cardSubs = result.rows.map((row) => row.sub);
+
+    for (let j = 0; j < batch.length; j++) {
+      const card = batch[j];
+      const cardSub = cardSubs[j];
+
+      for (const example of card.examples) {
+        allExamples.push({ cardSub, example });
+      }
     }
+
+    console.log(
+      `Inserted cards ${i + 1}-${Math.min(i + cardBatchSize, cardsWithExamples.length)}/${cardsWithExamples.length}`
+    );
+  }
+
+  const exampleBatchSize = 1000;
+  console.log(`Inserting ${allExamples.length} examples...`);
+
+  for (let i = 0; i < allExamples.length; i += exampleBatchSize) {
+    const batch = allExamples.slice(i, i + exampleBatchSize);
+
+    await pgm.db.query(
+      `
+      INSERT INTO cards.card_examples (card_sub, sentence)
+      SELECT vals.card_sub, vals.sentence
+      FROM unnest($1::uuid[], $2::text[]) AS vals(card_sub, sentence)
+    `,
+      [batch.map((e) => e.cardSub), batch.map((e) => e.example)]
+    );
+
+    console.log(
+      `Inserted examples ${i + 1}-${Math.min(i + exampleBatchSize, allExamples.length)}/${allExamples.length}`
+    );
   }
 };
 
