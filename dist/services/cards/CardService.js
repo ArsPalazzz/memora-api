@@ -17,13 +17,15 @@ const UserCardPreferencesRepository_1 = __importDefault(require("../../databases
 const CardDiscoveryRepository_1 = __importDefault(require("../../databases/postgre/entities/game/CardDiscoveryRepository"));
 const CardPreferenceRepository_1 = __importDefault(require("../../databases/postgre/entities/card/CardPreferenceRepository"));
 const FeedSettingsRepository_1 = __importDefault(require("../../databases/postgre/entities/card/FeedSettingsRepository"));
+const ReviewSettingsRepository_1 = __importDefault(require("../../databases/postgre/entities/card/ReviewSettingsRepository"));
 const ai = new genai_1.GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 class CardService {
-    constructor(cardRepository, cardExampleRepository, deskSettingsRepository, feedSettingsRepository, userCardSrsRepository, gameSessionRepository, userCardPreferencesRepository, cardDiscoveryRepository, cardPreferenceRepository) {
+    constructor(cardRepository, cardExampleRepository, deskSettingsRepository, feedSettingsRepository, reviewSettingsRepository, userCardSrsRepository, gameSessionRepository, userCardPreferencesRepository, cardDiscoveryRepository, cardPreferenceRepository) {
         this.cardRepository = cardRepository;
         this.cardExampleRepository = cardExampleRepository;
         this.deskSettingsRepository = deskSettingsRepository;
         this.feedSettingsRepository = feedSettingsRepository;
+        this.reviewSettingsRepository = reviewSettingsRepository;
         this.userCardSrsRepository = userCardSrsRepository;
         this.gameSessionRepository = gameSessionRepository;
         this.userCardPreferencesRepository = userCardPreferencesRepository;
@@ -82,6 +84,13 @@ class CardService {
         const res = await this.feedSettingsRepository.getByUserSub(userSub);
         if (!res) {
             throw new Error(`Feed settings for user ${userSub} not found`);
+        }
+        return res;
+    }
+    async getReviewSettingsByUserSub(userSub) {
+        const res = await this.reviewSettingsRepository.getByUserSub(userSub);
+        if (!res) {
+            throw new Error(`Review settings for user ${userSub} not found`);
         }
         return res;
     }
@@ -172,6 +181,13 @@ class CardService {
         }
         await this.feedSettingsRepository.create(userSub);
     }
+    async createReviewSettings(userSub) {
+        const exist = await this.reviewSettingsRepository.existByUserSub(userSub);
+        if (exist) {
+            throw new Error(`Review settings already exist for user with sub = ${userSub}`);
+        }
+        await this.reviewSettingsRepository.create(userSub);
+    }
     async getDeskSettings(deskSub) {
         return await this.deskSettingsRepository.getByDeskSub(deskSub);
     }
@@ -230,7 +246,34 @@ class CardService {
         return sub;
     }
     async createDesk(payload) {
-        const created_at = await this.cardRepository.createDesk(payload);
+        const { folderSub, ...rest } = payload;
+        if (folderSub) {
+            const exist = await this.cardRepository.existFolderBySub(folderSub);
+            if (!exist) {
+                throw new exceptions_1.NotFoundError(`Folder with sub = ${folderSub} not found`);
+            }
+        }
+        let existWithThisTitle = true;
+        if (payload.folderSub) {
+            existWithThisTitle = await this.cardRepository.existDeskWithTitleAndFolder({
+                title: payload.title,
+                folderSub: payload.folderSub,
+                creatorSub: payload.creatorSub,
+            });
+        }
+        else {
+            existWithThisTitle = await this.cardRepository.existDeskWithTitle({
+                title: payload.title,
+                creatorSub: payload.creatorSub,
+            });
+        }
+        if (existWithThisTitle) {
+            throw new Error(`Desk with title = ${payload.title} is already exist`);
+        }
+        const created_at = await this.cardRepository.createDesk(rest);
+        if (folderSub) {
+            await this.cardRepository.addDeskToFolder(payload.sub, folderSub);
+        }
         return {
             sub: payload.sub,
             title: payload.title,
@@ -241,6 +284,23 @@ class CardService {
     }
     async createFolder(payload) {
         const sub = (0, uuid_2.v4)();
+        let existWithThisTitle = true;
+        if (payload.parentFolderSub) {
+            existWithThisTitle = await this.cardRepository.existFolderWithTitleAndParent({
+                title: payload.title,
+                folderSub: payload.parentFolderSub,
+                creatorSub: payload.creatorSub,
+            });
+        }
+        else {
+            existWithThisTitle = await this.cardRepository.existFolderWithTitle({
+                title: payload.title,
+                creatorSub: payload.creatorSub,
+            });
+        }
+        if (existWithThisTitle) {
+            throw new Error(`Folder with title = ${payload.title} is already exist`);
+        }
         if (!payload.parentFolderSub) {
             return await this.cardRepository.createFolder({ sub, ...payload });
         }
@@ -254,38 +314,14 @@ class CardService {
         }
         await this.cardRepository.createFolder({ sub, ...payload });
     }
-    async getFolders(creatorSub) {
-        const folders = await this.cardRepository.getFolders(creatorSub);
-        return this.buildFolderTree(folders);
+    async getRootFolders(creatorSub) {
+        return await this.cardRepository.getRootFolders(creatorSub);
     }
-    buildFolderTree(folders) {
-        const folderMap = new Map();
-        const rootFolders = [];
-        // Сначала создаем все ноды
-        folders.forEach((folder) => {
-            folderMap.set(folder.sub, {
-                ...folder,
-                children: [],
-            });
-        });
-        // Затем строим дерево
-        folders.forEach((folder) => {
-            const node = folderMap.get(folder.sub);
-            if (folder.parentFolderSub) {
-                const parent = folderMap.get(folder.parentFolderSub);
-                if (parent) {
-                    parent.children.push(node);
-                }
-                else {
-                    // Если родитель не найден (возможно был удален), считаем корневым
-                    rootFolders.push(node);
-                }
-            }
-            else {
-                rootFolders.push(node);
-            }
-        });
-        return rootFolders;
+    async getFolderContents(folderSub, creatorSub) {
+        return await this.cardRepository.getFolderContents(folderSub, creatorSub);
+    }
+    async getFolderInfo(folderSub) {
+        return await this.cardRepository.getFolderInfo(folderSub);
     }
     async updateDesk(payload) {
         const { deskSub, body, creatorSub } = payload;
@@ -432,6 +468,17 @@ class CardService {
         await this.cardRepository.updateDeskSettings({
             desk_sub: deskSub,
             payload: body,
+        });
+    }
+    async updateReviewSettings(payload) {
+        const { body, creatorSub } = payload;
+        const exist = await this.reviewSettingsRepository.existByUserSub(creatorSub);
+        if (!exist) {
+            throw new exceptions_1.NotFoundError(`CardService: review settings for user with sub = ${creatorSub} not found`);
+        }
+        await this.reviewSettingsRepository.updateReviewSettings({
+            userSub: creatorSub,
+            cards_per_session: body.cards_per_session,
         });
     }
     calculateSrs(prev, quality) {
@@ -589,4 +636,4 @@ class CardService {
     }
 }
 exports.CardService = CardService;
-exports.default = new CardService(CardRepository_1.default, CardExampleRepository_1.default, DeskSettingsRepository_1.default, FeedSettingsRepository_1.default, UserCardSrsRepository_1.default, GameSessionRepository_1.default, UserCardPreferencesRepository_1.default, CardDiscoveryRepository_1.default, CardPreferenceRepository_1.default);
+exports.default = new CardService(CardRepository_1.default, CardExampleRepository_1.default, DeskSettingsRepository_1.default, FeedSettingsRepository_1.default, ReviewSettingsRepository_1.default, UserCardSrsRepository_1.default, GameSessionRepository_1.default, UserCardPreferencesRepository_1.default, CardDiscoveryRepository_1.default, CardPreferenceRepository_1.default);

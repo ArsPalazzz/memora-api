@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["sub", "title", "description", "isPublic"],
+  "required": ["sub", "title", "description", "isPublic", "folder_sub"],
   "additionalProperties": false,
   "properties": {
     "sub": {
@@ -17,6 +17,17 @@
     },
     "isPublic": {
       "type": "boolean"
+    },
+    "folder_sub": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uuid"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   }
 }

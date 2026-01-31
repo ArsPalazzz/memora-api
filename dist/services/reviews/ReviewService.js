@@ -7,10 +7,12 @@ exports.ReviewService = void 0;
 const ReviewRepository_1 = __importDefault(require("../../databases/postgre/entities/review/ReviewRepository"));
 const NotificationService_1 = __importDefault(require("../notifications/NotificationService"));
 const FMCService_1 = __importDefault(require("../notifications/FMCService"));
+const CardService_1 = __importDefault(require("../cards/CardService"));
 class ReviewService {
-    constructor(reviewRepository, notificationService, fcmService) {
+    constructor(reviewRepository, notificationService, cardService, fcmService) {
         this.reviewRepository = reviewRepository;
         this.notificationService = notificationService;
+        this.cardService = cardService;
         this.fcmService = fcmService;
     }
     async notifyUser(userSub, dueCount) {
@@ -24,7 +26,8 @@ class ReviewService {
             if (!batchId) {
                 throw new Error(`Cannot create batch`);
             }
-            await this.reviewRepository.addCardsToBatch(batchId, userSub);
+            const reviewSettings = await this.cardService.getReviewSettingsByUserSub(userSub);
+            await this.reviewRepository.addCardsToBatch(batchId, userSub, reviewSettings.cards_per_session);
             const tokens = await this.notificationService.getActiveFcmTokens(userSub);
             if (tokens.length === 0) {
                 console.log(`📭 No active tokens for user ${userSub}`);
@@ -71,4 +74,4 @@ class ReviewService {
     }
 }
 exports.ReviewService = ReviewService;
-exports.default = new ReviewService(ReviewRepository_1.default, NotificationService_1.default, FMCService_1.default);
+exports.default = new ReviewService(ReviewRepository_1.default, NotificationService_1.default, CardService_1.default, FMCService_1.default);

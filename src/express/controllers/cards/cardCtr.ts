@@ -9,6 +9,7 @@ import * as createDeskDtoSchema from './schemas/createDeskDto.json';
 import * as createFolderDtoSchema from './schemas/createFolderDto.json';
 import * as getDeskInfoDtoSchema from './schemas/getDeskInfoDto.json';
 import * as updateDeskSettingsBodyDtoSchema from './schemas/updateDeskSettingsBodyDto.json';
+import * as updateReviewSettingsBodyDtoSchema from './schemas/updateReviewSettingsBodyDto.json';
 import * as updateDeskSettingsParamsDtoSchema from './schemas/updateDeskSettingsParamsDto.json';
 import * as updateDeskBodyDtoSchema from './schemas/updateDeskBodyDto.json';
 import * as updateFeedSettingsBodyDtoSchema from './schemas/updateFeedSettingsBodyDto.json';
@@ -21,6 +22,7 @@ const validateCreateDeskDto = ajv.compile(createDeskDtoSchema);
 const validateCreateFolderDto = ajv.compile(createFolderDtoSchema);
 const validateGetDeskInfoDto = ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = ajv.compile(updateDeskSettingsBodyDtoSchema);
+const validateUpdateReviewSettingsBodyDto = ajv.compile(updateReviewSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = ajv.compile(updateDeskSettingsParamsDtoSchema);
 const validateUpdateDeskBodyDto = ajv.compile(updateDeskBodyDtoSchema);
 const validateUpdateFeedSettingsBodyDto = ajv.compile(updateFeedSettingsBodyDtoSchema);
@@ -166,11 +168,36 @@ export async function createFolderCtr(req: Request, res: Response, next: NextFun
   }
 }
 
+export const getFolderContentsCtr = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sub } = req.params;
+
+    const creatorSub = res.locals.userSub as string;
+
+    const contents = await cardService.getFolderContents(sub, creatorSub);
+
+    res.json(contents);
+  } catch (e) {
+    next(e);
+  }
+};
+
+export const getFolderInfoCtr = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sub } = req.params;
+    const info = await cardService.getFolderInfo(sub);
+
+    res.json(info);
+  } catch (e) {
+    next(e);
+  }
+};
+
 export async function getFoldersCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const creatorSub = res.locals.userSub as string;
 
-    const folders = await cardService.getFolders(creatorSub);
+    const folders = await cardService.getRootFolders(creatorSub);
 
     res.status(200).json(folders);
   } catch (e) {
@@ -188,11 +215,12 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const { sub, title, description, isPublic } = req.body as {
+    const { sub, title, description, isPublic, folder_sub } = req.body as {
       sub: string;
       title: string;
       description: string;
       isPublic: boolean;
+      folder_sub: string | null;
     };
 
     const creatorSub = res.locals.userSub as string;
@@ -203,6 +231,7 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       description,
       public: isPublic,
       creatorSub,
+      folderSub: folder_sub,
     });
     res.json(deskInfo);
   } catch (e) {
@@ -447,6 +476,35 @@ export async function updateDeskSettingsCtr(req: Request, res: Response, next: N
       creatorSub,
     });
     res.json({ updated: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function updateReviewSettingsCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const body = {
+      cards_per_session: req.body.cards_per_session as number,
+    };
+
+    if (!validateUpdateReviewSettingsBodyDto(body)) {
+      return next(
+        createError(422, 'Incorrect review settings body', {
+          errors: validateUpdateReviewSettingsBodyDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    await cardService.updateReviewSettings({
+      body,
+      creatorSub,
+    });
+
+    res.sendStatus(204);
   } catch (e) {
     next(e);
   }

@@ -55,6 +55,7 @@ async function createUserCtr(req, res, next) {
         const { email, password } = req.body;
         const user = await UserService_1.default.createUser({ email, pass: password });
         await CardService_1.default.createFeedSettings(user.sub);
+        await CardService_1.default.createReviewSettings(user.sub);
         res.json(user);
     }
     catch (e) {
@@ -68,9 +69,11 @@ async function createUserCtr(req, res, next) {
 }
 async function getMyProfileCtr(req, res, next) {
     try {
-        const profile = await UserService_1.default.getProfile({ sub: res.locals.userSub });
-        const settings = await CardService_1.default.getFeedSettingsByUserSub(res.locals.userSub);
-        res.json({ profile, settings });
+        const userSub = res.locals.userSub;
+        const profile = await UserService_1.default.getProfile({ sub: userSub });
+        const settings = await CardService_1.default.getFeedSettingsByUserSub(userSub);
+        const reviewSettings = await CardService_1.default.getReviewSettingsByUserSub(userSub);
+        res.json({ profile, settings: { ...settings, reviewSettings } });
     }
     catch (e) {
         next(e);

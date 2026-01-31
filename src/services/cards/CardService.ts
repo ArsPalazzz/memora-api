@@ -32,6 +32,9 @@ import cardPreferenceRepository, {
 import feedSettingsRepository, {
   FeedSettingsRepository,
 } from '../../databases/postgre/entities/card/FeedSettingsRepository';
+import reviewSettingsRepository, {
+  ReviewSettingsRepository,
+} from '../../databases/postgre/entities/card/ReviewSettingsRepository';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -41,6 +44,7 @@ export class CardService {
     private readonly cardExampleRepository: CardExampleRepository,
     private readonly deskSettingsRepository: DeskSettingsRepository,
     private readonly feedSettingsRepository: FeedSettingsRepository,
+    private readonly reviewSettingsRepository: ReviewSettingsRepository,
     private readonly userCardSrsRepository: UserCardSrsRepository,
     private readonly gameSessionRepository: GameSessionRepository,
     private readonly userCardPreferencesRepository: UserCardPreferencesRepository,
@@ -116,6 +120,15 @@ export class CardService {
     const res = await this.feedSettingsRepository.getByUserSub(userSub);
     if (!res) {
       throw new Error(`Feed settings for user ${userSub} not found`);
+    }
+
+    return res;
+  }
+
+  async getReviewSettingsByUserSub(userSub: string) {
+    const res = await this.reviewSettingsRepository.getByUserSub(userSub);
+    if (!res) {
+      throw new Error(`Review settings for user ${userSub} not found`);
     }
 
     return res;
@@ -226,6 +239,15 @@ export class CardService {
     await this.feedSettingsRepository.create(userSub);
   }
 
+  async createReviewSettings(userSub: string) {
+    const exist = await this.reviewSettingsRepository.existByUserSub(userSub);
+    if (exist) {
+      throw new Error(`Review settings already exist for user with sub = ${userSub}`);
+    }
+
+    await this.reviewSettingsRepository.create(userSub);
+  }
+
   async getDeskSettings(deskSub: string) {
     return await this.deskSettingsRepository.getByDeskSub(deskSub);
   }
@@ -331,8 +353,41 @@ export class CardService {
     description: string;
     public: boolean;
     creatorSub: string;
+    folderSub: string | null;
   }) {
-    const created_at = await this.cardRepository.createDesk(payload);
+    const { folderSub, ...rest } = payload;
+
+    if (folderSub) {
+      const exist = await this.cardRepository.existFolderBySub(folderSub);
+      if (!exist) {
+        throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+      }
+    }
+
+    let existWithThisTitle: boolean | undefined = true;
+
+    if (payload.folderSub) {
+      existWithThisTitle = await this.cardRepository.existDeskWithTitleAndFolder({
+        title: payload.title,
+        folderSub: payload.folderSub,
+        creatorSub: payload.creatorSub,
+      });
+    } else {
+      existWithThisTitle = await this.cardRepository.existDeskWithTitle({
+        title: payload.title,
+        creatorSub: payload.creatorSub,
+      });
+    }
+
+    if (existWithThisTitle) {
+      throw new Error(`Desk with title = ${payload.title} is already exist`);
+    }
+
+    const created_at = await this.cardRepository.createDesk(rest);
+
+    if (folderSub) {
+      await this.cardRepository.addDeskToFolder(payload.sub, folderSub);
+    }
 
     return {
       sub: payload.sub,
@@ -350,6 +405,25 @@ export class CardService {
     creatorSub: string;
   }) {
     const sub = uuidv4();
+
+    let existWithThisTitle: boolean | undefined = true;
+
+    if (payload.parentFolderSub) {
+      existWithThisTitle = await this.cardRepository.existFolderWithTitleAndParent({
+        title: payload.title,
+        folderSub: payload.parentFolderSub,
+        creatorSub: payload.creatorSub,
+      });
+    } else {
+      existWithThisTitle = await this.cardRepository.existFolderWithTitle({
+        title: payload.title,
+        creatorSub: payload.creatorSub,
+      });
+    }
+
+    if (existWithThisTitle) {
+      throw new Error(`Folder with title = ${payload.title} is already exist`);
+    }
 
     if (!payload.parentFolderSub) {
       return await this.cardRepository.createFolder({ sub, ...payload });
@@ -373,38 +447,16 @@ export class CardService {
     await this.cardRepository.createFolder({ sub, ...payload });
   }
 
-  async getFolders(creatorSub: string): Promise<FolderTree[]> {
-    const folders = await this.cardRepository.getFolders(creatorSub);
-    return this.buildFolderTree(folders);
+  async getRootFolders(creatorSub: string) {
+    return await this.cardRepository.getRootFolders(creatorSub);
   }
 
-  private buildFolderTree(folders: Folder[]): FolderTree[] {
-    const folderMap = new Map<string, FolderTree>();
-    const rootFolders: FolderTree[] = [];
+  async getFolderContents(folderSub: string, creatorSub: string) {
+    return await this.cardRepository.getFolderContents(folderSub, creatorSub);
+  }
 
-    folders.forEach((folder) => {
-      folderMap.set(folder.sub, {
-        ...folder,
-        children: [],
-      });
-    });
-
-    folders.forEach((folder) => {
-      const node = folderMap.get(folder.sub)!;
-
-      if (folder.parentFolderSub) {
-        const parent = folderMap.get(folder.parentFolderSub);
-        if (parent) {
-          parent.children!.push(node);
-        } else {
-          rootFolders.push(node);
-        }
-      } else {
-        rootFolders.push(node);
-      }
-    });
-
-    return rootFolders;
+  async getFolderInfo(folderSub: string) {
+    return await this.cardRepository.getFolderInfo(folderSub);
   }
 
   async updateDesk(payload: {
@@ -611,6 +663,21 @@ export class CardService {
     });
   }
 
+  async updateReviewSettings(payload: { body: { cards_per_session: number }; creatorSub: string }) {
+    const { body, creatorSub } = payload;
+    const exist = await this.reviewSettingsRepository.existByUserSub(creatorSub);
+    if (!exist) {
+      throw new NotFoundError(
+        `CardService: review settings for user with sub = ${creatorSub} not found`
+      );
+    }
+
+    await this.reviewSettingsRepository.updateReviewSettings({
+      userSub: creatorSub,
+      cards_per_session: body.cards_per_session,
+    });
+  }
+
   private calculateSrs(prev: any | null, quality: number) {
     let repetitions = prev?.repetitions ?? 0;
     let interval = prev?.interval_minutes ?? 0;
@@ -776,6 +843,7 @@ export default new CardService(
   cardExampleRepository,
   deskSettingsRepository,
   feedSettingsRepository,
+  reviewSettingsRepository,
   userCardSrsRepository,
   gameSessionRepository,
   userCardPreferencesRepository,

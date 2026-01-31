@@ -70,6 +70,60 @@ export interface Folder {
   childCount: number;
 }
 
+export type FolderContentItem = {
+  sub: string;
+  title: string;
+  description: string | null;
+  parentFolderSub: string | null;
+  createdAt: string;
+  type: 'folder' | 'desk';
+  totalCards?: number;
+  learningCards?: number;
+  dueCards?: number;
+  newCards?: number;
+  masteredCards?: number;
+  deskCount: number;
+  childCount: number;
+  sortTitle: string;
+  sortDate: string;
+};
+
+export type GetFolderContentsRes = {
+  sub: string;
+  title: string;
+  description: string | null;
+  parentFolderSub: string | null;
+  createdAt: string;
+  type: 'folder' | 'desk';
+  totalCards?: number;
+  learningCards?: number;
+  dueCards?: number;
+  newCards?: number;
+  masteredCards?: number;
+  deskCount: number;
+  folderCount: number;
+  sortTitle: string;
+  sortDate: string;
+};
+
+export type FolderInfo = {
+  sub: string;
+  title: string;
+  description: string | null;
+  parentFolderSub: string | null;
+  createdAt: string;
+  deskCount: number;
+  childCount: number;
+};
+
 export interface FolderTree extends Folder {
   children: FolderTree[];
+}
+
+export interface GetRootFoldersRes {
+  sub: string;
+  title: string;
+  description: string;
+  deskCount: number;
+  folderCount: number;
 }

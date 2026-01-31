@@ -99,7 +99,16 @@ export class GameService {
       throw new BadRequestError(`Session with id = ${sessionId} is already completed`);
     }
 
-    return card;
+    return {
+      card: {
+        sub: card.sub,
+        text: card.text,
+      },
+      progress: {
+        current: card.current_position,
+        total: card.total_cards,
+      },
+    };
   }
 
   async answerCard(params: { sessionId: string; userSub: string; answer: string }) {

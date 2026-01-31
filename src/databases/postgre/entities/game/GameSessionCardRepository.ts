@@ -32,7 +32,13 @@ export class GameSessionCardRepository extends Table {
       values: [sessionId],
     };
 
-    return this.getItem<{ sub: string; text: string[] }>(query);
+    return this.getItem<{
+      sub: string;
+      direction: string;
+      text: string[];
+      total_cards: number;
+      current_position: number;
+    }>(query);
   }
 
   async createFeedAction(params: {

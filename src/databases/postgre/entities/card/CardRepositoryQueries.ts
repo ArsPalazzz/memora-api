@@ -14,6 +14,48 @@ export const EXIST_DESK = `
   SELECT EXISTS (SELECT 1 FROM cards.desk WHERE sub = $1);
 `;
 
+export const EXIST_DESK_WITH_THIS_TITLE = `
+  SELECT EXISTS (
+    SELECT 1 
+    FROM cards.desk d
+    INNER JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
+    WHERE d.title = $1
+      AND fd.folder_sub IS NULL
+      AND d.creator_sub = $2
+  );
+`;
+
+export const EXIST_DESK_WITH_THIS_TITLE_AND_FOLDER = `
+  SELECT EXISTS (
+    SELECT 1 
+    FROM cards.desk d
+    INNER JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
+    WHERE d.title = $1
+      AND fd.folder_sub = $2
+      AND d.creator_sub = $3
+  );
+`;
+
+export const EXIST_FOLDER_WITH_THIS_TITLE_AND_PARENT = `
+  SELECT EXISTS (
+    SELECT 1 
+    FROM cards.folder
+    WHERE title = $1
+      AND parent_folder_sub = $2
+      AND creator_sub = $3
+  );
+`;
+
+export const EXIST_FOLDER_WITH_THIS_TITLE = `
+  SELECT EXISTS (
+    SELECT 1 
+    FROM cards.folder
+    WHERE title = $1
+      AND parent_folder_sub IS NULL
+      AND creator_sub = $2
+  );
+`;
+
 export const UPDATE_LAST_TIME_PLAYED_DESK = `
     UPDATE cards.desk
     SET last_time_played = NOW()
@@ -94,11 +136,204 @@ export const EXIST_FOLDER_BY_SUB = `
   SELECT EXISTS (SELECT 1 FROM cards.folder WHERE sub = $1);
 `;
 
+export const ADD_DESK_TO_FOLDER = `
+  INSERT INTO cards.folder_desk (folder_sub, desk_sub) VALUES ($1,$2);
+`;
+
 export const HAVE_ACCESS_TO_FOLDER = `
   SELECT EXISTS (SELECT 1 FROM cards.folder WHERE sub = $1 AND creator_sub = $2);
 `;
 
-export const GET_FOLDERS_BY_CREATOR_SUB = `
+export const GET_FOLDER_TREE = `
+  WITH RECURSIVE folder_tree AS (
+    -- Базовый случай: корневые папки
+    SELECT 
+      f.sub,
+      f.title,
+      f.description,
+      f.parent_folder_sub AS "parentFolderSub",
+      f.created_at AS "createdAt",
+      1 AS level,
+      ARRAY[f.sub] AS path,
+      -- Количество досок
+      (
+        SELECT COUNT(*)
+        FROM cards.folder_desk fd
+        WHERE fd.folder_sub = f.sub
+      ) AS "deskCount",
+      -- Количество дочерних папок
+      (
+        SELECT COUNT(*)
+        FROM cards.folder fc
+        WHERE fc.parent_folder_sub = f.sub
+      ) AS "childCount"
+    FROM cards.folder f
+    WHERE f.creator_sub = $1 
+      AND f.parent_folder_sub IS NULL
+    
+    UNION ALL
+    
+    -- Рекурсивный случай
+    SELECT 
+      f.sub,
+      f.title,
+      f.description,
+      f.parent_folder_sub AS "parentFolderSub",
+      f.created_at AS "createdAt",
+      ft.level + 1 AS level,
+      ft.path || f.sub AS path,
+      (
+        SELECT COUNT(*)
+        FROM cards.folder_desk fd
+        WHERE fd.folder_sub = f.sub
+      ) AS "deskCount",
+      (
+        SELECT COUNT(*)
+        FROM cards.folder fc
+        WHERE fc.parent_folder_sub = f.sub
+      ) AS "childCount"
+    FROM cards.folder f
+    INNER JOIN folder_tree ft ON f.parent_folder_sub = ft.sub
+    WHERE f.creator_sub = $1
+  )
+  SELECT 
+    ft.sub,
+    ft.title,
+    ft.description,
+    ft."parentFolderSub",
+    ft."createdAt",
+    ft."deskCount",
+    ft."childCount",
+    ft.level,
+    ft.path,
+    -- Получаем дочерние элементы как JSON
+    COALESCE(
+      (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'sub', c.sub,
+            'title', c.title,
+            'description', c.description,
+            'parentFolderSub', c."parentFolderSub",
+            'createdAt', c."createdAt",
+            'deskCount', c."deskCount",
+            'childCount', c."childCount",
+            'level', c.level,
+            'path', c.path,
+            'children', '[]'::jsonb  -- Пустые children на этом уровне
+          )
+          ORDER BY c."createdAt"
+        )
+        FROM folder_tree c
+        WHERE c."parentFolderSub" = ft.sub
+      ),
+      '[]'::jsonb
+    ) AS children
+  FROM folder_tree ft
+  WHERE ft."parentFolderSub" IS NULL
+  ORDER BY ft."createdAt" ASC;
+`;
+
+export const GET_FOLDER_CONTENTS = `
+  -- Прямые дочерние папки (с подсчетом через отдельные рекурсивные запросы)
+  SELECT
+    f.sub,
+    f.title,
+    f.description,
+    f.parent_folder_sub AS "parentFolderSub",
+    f.created_at AS "createdAt",
+    'folder' AS type,
+    'active' AS status,
+    
+    NULL AS "totalCards",
+    NULL AS "newCards",
+    NULL AS "dueCards",
+    NULL AS "learningCards",
+    NULL AS "masteredCards",
+    
+    -- Доски в этой папке и всех её потомках
+    (
+      WITH RECURSIVE folder_tree AS (
+        SELECT sub FROM cards.folder WHERE sub = f.sub
+        UNION ALL
+        SELECT fc.sub FROM cards.folder fc
+        INNER JOIN folder_tree ft ON fc.parent_folder_sub = ft.sub
+        WHERE fc.creator_sub = $2
+      )
+      SELECT COUNT(DISTINCT fd.desk_sub)
+      FROM folder_tree ft
+      LEFT JOIN cards.folder_desk fd ON fd.folder_sub = ft.sub
+    ) AS "deskCount",
+    
+    -- Папки-потомки (включая вложенные)
+    (
+      WITH RECURSIVE folder_tree AS (
+        SELECT sub, 1 as level FROM cards.folder WHERE sub = f.sub
+        UNION ALL
+        SELECT fc.sub, ft.level + 1 FROM cards.folder fc
+        INNER JOIN folder_tree ft ON fc.parent_folder_sub = ft.sub
+        WHERE fc.creator_sub = $2
+      )
+      SELECT COUNT(*) - 1 FROM folder_tree
+    ) AS "childCount"
+    
+  FROM cards.folder f
+  WHERE f.parent_folder_sub = $1
+    AND f.creator_sub = $2
+  
+  UNION ALL
+  
+  -- Доски в текущей папке
+  SELECT
+    d.sub,
+    d.title,
+    d.description,
+    NULL AS "parentFolderSub",
+    d.created_at AS "createdAt",
+    'desk' AS type,
+    d.status,
+    
+    COUNT(DISTINCT c.sub) AS "totalCards",
+    COUNT(
+      DISTINCT CASE
+        WHEN ucs.repetitions IS NULL OR ucs.repetitions = 0
+        THEN c.sub
+      END
+    ) AS "newCards",
+    COUNT(
+      DISTINCT CASE
+        WHEN ucs.next_review <= NOW()
+        THEN c.sub
+      END
+    ) AS "dueCards",
+    COUNT(
+      DISTINCT CASE
+        WHEN ucs.repetitions > 0
+             AND (ucs.next_review > NOW() OR ucs.next_review IS NULL)
+             AND ucs.interval_minutes <= 43200
+        THEN c.sub
+      END
+    ) AS "learningCards",
+    COUNT(
+      DISTINCT CASE
+        WHEN ucs.interval_minutes > 43200
+        THEN c.sub
+      END
+    ) AS "masteredCards",
+    
+    0 AS "deskCount",
+    0 AS "childCount"
+    
+  FROM cards.desk d
+  INNER JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
+  LEFT JOIN cards.card c ON c.desk_sub = d.sub
+  LEFT JOIN cards.user_card_srs ucs ON ucs.card_sub = c.sub AND ucs.user_sub = $2
+  WHERE fd.folder_sub = $1
+    AND d.creator_sub = $2
+    AND d.status = 'active'
+  GROUP BY d.sub, d.title, d.description, d.status, d.created_at
+`;
+export const GET_FOLDER_INFO = `
   SELECT 
     f.sub,
     f.title,
@@ -106,18 +341,66 @@ export const GET_FOLDERS_BY_CREATOR_SUB = `
     f.parent_folder_sub AS "parentFolderSub",
     f.created_at AS "createdAt",
     COUNT(DISTINCT fd.desk_sub) AS "deskCount",
-    COUNT(DISTINCT fc.sub) AS "childCount"
+    (
+      SELECT COUNT(*)
+      FROM cards.folder fc
+      WHERE fc.parent_folder_sub = f.sub
+    ) AS "childCount"
   FROM cards.folder f
   LEFT JOIN cards.folder_desk fd ON fd.folder_sub = f.sub
-  LEFT JOIN cards.folder fc ON fc.parent_folder_sub = f.sub
-  WHERE f.creator_sub = $1
+  WHERE f.sub = $1
+  GROUP BY f.sub, f.title, f.description, f.parent_folder_sub, f.created_at;
+`;
+
+export const GET_ROOT_FOLDERS = `
+  WITH RECURSIVE folder_tree AS (
+    -- Базовый случай: корневые папки (те, которые нам нужно вернуть)
+    SELECT 
+      f.sub,
+      f.parent_folder_sub,
+      f.sub AS root_folder_sub,  -- Запоминаем корневую папку для группировки
+      1 AS depth
+    FROM cards.folder f
+    WHERE f.creator_sub = $1
+      AND f.parent_folder_sub IS NULL
+    
+    UNION ALL
+    
+    -- Рекурсивный случай: все дочерние папки (включая вложенные)
+    SELECT 
+      f.sub,
+      f.parent_folder_sub,
+      ft.root_folder_sub,  -- Сохраняем ссылку на корневую папку
+      ft.depth + 1
+    FROM cards.folder f
+    INNER JOIN folder_tree ft ON f.parent_folder_sub = ft.sub
+    WHERE f.creator_sub = $1
+  )
+  
+  SELECT 
+    ft_root.sub,
+    ft_root.title,
+    ft_root.description,
+    ft_root.parent_folder_sub,
+    ft_root.created_at AS "createdAt",
+    -- Считаем ВСЕ доски во ВСЕХ папках дерева (включая корневую и все вложенные)
+    COUNT(DISTINCT fd.desk_sub) AS "deskCount",
+    -- Считаем ВСЕ папки в дереве (включая корневую)
+    COUNT(DISTINCT ft_all.sub) - 1 AS "childCount"  -- -1 чтобы исключить саму корневую папку
+  FROM cards.folder ft_root
+  -- Присоединяем ВСЕ папки в дереве (включая саму корневую)
+  LEFT JOIN folder_tree ft_all ON ft_all.root_folder_sub = ft_root.sub
+  -- Присоединяем все доски во всех папках дерева
+  LEFT JOIN cards.folder_desk fd ON fd.folder_sub = ft_all.sub
+  WHERE ft_root.creator_sub = $1
+    AND ft_root.parent_folder_sub IS NULL
   GROUP BY 
-    f.sub,
-    f.title,
-    f.description,
-    f.parent_folder_sub,
-    f.created_at
-  ORDER BY f.created_at ASC;
+    ft_root.sub,
+    ft_root.title,
+    ft_root.description,
+    ft_root.parent_folder_sub,
+    ft_root.created_at
+  ORDER BY ft_root.created_at DESC;
 `;
 
 export const INSERT_DESK_SETTINGS = `
@@ -181,8 +464,10 @@ LEFT JOIN cards.card c
 LEFT JOIN cards.user_card_srs ucs
   ON ucs.card_sub = c.sub
  AND ucs.user_sub = $1
+LEFT JOIN cards.folder_desk fd
+  ON fd.desk_sub = d.sub
 
-WHERE d.creator_sub = $1
+WHERE d.creator_sub = $1 AND fd.desk_sub IS NULL
 
 GROUP BY
   d.sub,

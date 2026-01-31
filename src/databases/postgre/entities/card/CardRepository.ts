@@ -1,12 +1,17 @@
 import Table, { PgTransaction } from '../Table';
 import Postgres, { Query } from '../../index';
 import {
+  ADD_DESK_TO_FOLDER,
   ARCHIVE_DESK,
   DELETE_CARD,
   EXIST_CARD,
   EXIST_CARD_BY_SUB,
   EXIST_DESK,
+  EXIST_DESK_WITH_THIS_TITLE,
+  EXIST_DESK_WITH_THIS_TITLE_AND_FOLDER,
   EXIST_FOLDER_BY_SUB,
+  EXIST_FOLDER_WITH_THIS_TITLE,
+  EXIST_FOLDER_WITH_THIS_TITLE_AND_PARENT,
   GET_ARCHIVED_DESKS_BY_CREATOR_SUB,
   GET_CARD,
   GET_CARD_SUBS_FOR_PLAY,
@@ -15,7 +20,10 @@ import {
   GET_DESK_DETAILS,
   GET_DESK_SUBS_BY_CREATOR_SUB,
   GET_DESKS_BY_CREATOR_SUB,
-  GET_FOLDERS_BY_CREATOR_SUB,
+  GET_FOLDER_CONTENTS,
+  GET_FOLDER_INFO,
+  GET_FOLDER_TREE,
+  GET_ROOT_FOLDERS,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
   HAVE_ACCESS_TO_FOLDER,
@@ -32,8 +40,12 @@ import {
 } from './CardRepositoryQueries';
 import {
   Folder,
+  FolderContentItem,
+  FolderInfo,
   GetDeskCardsResult,
   GetDeskDetailsResult,
+  GetFolderContentsRes,
+  GetRootFoldersRes,
 } from '../../../../services/cards/card.interfaces';
 import { CARD_ORIENTATION } from '../../../../services/cards/card.const';
 import { DatabaseError } from '../../../../exceptions';
@@ -284,6 +296,54 @@ export class CardRepository extends Table {
     return this.exists(query);
   }
 
+  async existDeskWithTitle(params: { title: string; creatorSub: string }) {
+    const query: Query = {
+      name: 'existDeskWithTitle',
+      text: EXIST_DESK_WITH_THIS_TITLE,
+      values: [params.title, params.creatorSub],
+    };
+
+    return this.exists(query);
+  }
+
+  async existDeskWithTitleAndFolder(params: {
+    title: string;
+    folderSub: string;
+    creatorSub: string;
+  }) {
+    const query: Query = {
+      name: 'existDeskWithTitleAndFolder',
+      text: EXIST_DESK_WITH_THIS_TITLE_AND_FOLDER,
+      values: [params.title, params.folderSub, params.creatorSub],
+    };
+
+    return this.exists(query);
+  }
+
+  async existFolderWithTitleAndParent(params: {
+    title: string;
+    folderSub: string;
+    creatorSub: string;
+  }) {
+    const query: Query = {
+      name: 'existFolderWithTitleAndParent',
+      text: EXIST_FOLDER_WITH_THIS_TITLE_AND_PARENT,
+      values: [params.title, params.folderSub, params.creatorSub],
+    };
+
+    return this.exists(query);
+  }
+
+  async existFolderWithTitle(params: { title: string; creatorSub: string }) {
+    const query: Query = {
+      name: 'existFolderWithTitle',
+      text: EXIST_FOLDER_WITH_THIS_TITLE,
+      values: [params.title, params.creatorSub],
+    };
+
+    return this.exists(query);
+  }
+
   async updateLastTimePlayedDesk(deskSub: string, tx: PgTransaction) {
     return tx.query({
       name: 'updateLastTimePlayedDesk',
@@ -374,6 +434,16 @@ export class CardRepository extends Table {
     return this.exists(query);
   }
 
+  async addDeskToFolder(deskSub: string, folderSub: string) {
+    const query: Query = {
+      name: 'addDeskToFolder',
+      text: ADD_DESK_TO_FOLDER,
+      values: [folderSub, deskSub],
+    };
+
+    return this.insertItem(query);
+  }
+
   async haveAccessToFolder(folderSub: string, userSub: string) {
     const query: Query = {
       name: 'haveAccessToFolder',
@@ -387,11 +457,78 @@ export class CardRepository extends Table {
   async getFolders(creatorSub: string): Promise<Folder[]> {
     const query: Query = {
       name: 'getFoldersByCreatorSub',
-      text: GET_FOLDERS_BY_CREATOR_SUB,
+      text: GET_FOLDER_TREE,
       values: [creatorSub],
     };
 
     return await this.getItems(query);
+  }
+
+  async getFolderContents(folderSub: string, creatorSub: string): Promise<GetFolderContentsRes[]> {
+    const query: Query = {
+      name: 'getFolderContents',
+      text: GET_FOLDER_CONTENTS,
+      values: [folderSub, creatorSub],
+    };
+
+    const res = await this.getItems<FolderContentItem>(query);
+
+    return res.map(({ childCount, ...item }) => ({
+      ...item,
+      totalCards: Number(item.totalCards),
+      newCards: Number(item.newCards),
+      dueCards: Number(item.dueCards),
+      learningCards: Number(item.learningCards),
+      masteredCards: Number(item.masteredCards),
+      deskCount: Number(item.deskCount),
+      folderCount: Number(childCount),
+    }));
+  }
+
+  async getFolderInfo(folderSub: string): Promise<FolderInfo | null> {
+    const query: Query = {
+      name: 'getFolderInfo',
+      text: GET_FOLDER_INFO,
+      values: [folderSub],
+    };
+
+    const result = await this.getItem<FolderInfo>(query);
+    if (!result) return null;
+
+    return {
+      sub: result.sub,
+      title: result.title,
+      description: result.description,
+      parentFolderSub: result.parentFolderSub,
+      createdAt: result.createdAt,
+      deskCount: Number(result.deskCount),
+      childCount: Number(result.childCount),
+    };
+  }
+
+  async getRootFolders(creatorSub: string): Promise<GetRootFoldersRes[]> {
+    const query: Query = {
+      name: 'getRootFolders',
+      text: GET_ROOT_FOLDERS,
+      values: [creatorSub],
+    };
+
+    const res = await this.getItems<{
+      sub: string;
+      title: string;
+      description: string;
+      deskCount: string;
+      childCount: string;
+    }>(query);
+    console.log(res);
+
+    return res.map((item) => ({
+      sub: item.sub,
+      title: item.title,
+      description: item.description,
+      deskCount: Number(item.deskCount),
+      folderCount: Number(item.childCount),
+    }));
   }
 
   async updateDesk(params: { desk_sub: string; payload: { title: string; description: string } }) {

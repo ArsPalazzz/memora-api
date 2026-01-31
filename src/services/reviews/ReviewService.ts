@@ -3,11 +3,13 @@ import reviewRepository, {
 } from '../../databases/postgre/entities/review/ReviewRepository';
 import notificationService, { NotificationService } from '../notifications/NotificationService';
 import fcmService, { FCMService } from '../notifications/FMCService';
+import cardService, { CardService } from '../cards/CardService';
 
 export class ReviewService {
   constructor(
     private readonly reviewRepository: ReviewRepository,
     private readonly notificationService: NotificationService,
+    private readonly cardService: CardService,
     private readonly fcmService: FCMService
   ) {}
 
@@ -24,7 +26,13 @@ export class ReviewService {
         throw new Error(`Cannot create batch`);
       }
 
-      await this.reviewRepository.addCardsToBatch(batchId, userSub);
+      const reviewSettings = await this.cardService.getReviewSettingsByUserSub(userSub);
+
+      await this.reviewRepository.addCardsToBatch(
+        batchId,
+        userSub,
+        reviewSettings.cards_per_session
+      );
 
       const tokens = await this.notificationService.getActiveFcmTokens(userSub);
       if (tokens.length === 0) {
@@ -82,4 +90,4 @@ export class ReviewService {
   }
 }
 
-export default new ReviewService(reviewRepository, notificationService, fcmService);
+export default new ReviewService(reviewRepository, notificationService, cardService, fcmService);

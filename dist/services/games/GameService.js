@@ -26,7 +26,7 @@ class GameService {
             await this.gameSessionRepository.create(sessionId, userSub, deskSub, tx);
             const deskSettings = await this.cardService.getDeskSettings(deskSub);
             if (!deskSettings) {
-                throw new Error('Desk settings not found');
+                throw new Error('Deck settings not found');
             }
             const { cards_per_session, card_orientation } = deskSettings;
             const cards = await this.cardService.getCardSubsForPlay(deskSub, cards_per_session);
@@ -78,7 +78,16 @@ class GameService {
         if (!card) {
             throw new exceptions_1.BadRequestError(`Session with id = ${sessionId} is already completed`);
         }
-        return card;
+        return {
+            card: {
+                sub: card.sub,
+                text: card.text,
+            },
+            progress: {
+                current: card.current_position,
+                total: card.total_cards,
+            },
+        };
     }
     async answerCard(params) {
         const { sessionId, userSub, answer } = params;
@@ -233,7 +242,7 @@ class GameService {
     async addCardToDesk(userSub, cardSub, deskSubs) {
         const isOwner = await this.cardService.isDesksOwner(userSub, deskSubs);
         if (!isOwner) {
-            throw new exceptions_1.ForbiddenError('You are not the owner of desk/desks');
+            throw new exceptions_1.ForbiddenError('You are not the owner of deck/decks');
         }
         await this.cardService.cloneCardToDesks(cardSub, deskSubs);
     }

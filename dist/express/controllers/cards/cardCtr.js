@@ -36,6 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getFolderInfoCtr = exports.getFolderContentsCtr = void 0;
 exports.getCardsCtr = getCardsCtr;
 exports.getDesksCtr = getDesksCtr;
 exports.getArchivedDesksCtr = getArchivedDesksCtr;
@@ -54,6 +55,7 @@ exports.deleteCardCtr = deleteCardCtr;
 exports.archivedDeskCtr = archivedDeskCtr;
 exports.restoreDeskCtr = restoreDeskCtr;
 exports.updateDeskSettingsCtr = updateDeskSettingsCtr;
+exports.updateReviewSettingsCtr = updateReviewSettingsCtr;
 const CardService_1 = __importDefault(require("../../../services/cards/CardService"));
 const UserService_1 = __importDefault(require("../../../services/users/UserService"));
 const utils_1 = require("../../../utils");
@@ -63,6 +65,7 @@ const createDeskDtoSchema = __importStar(require("./schemas/createDeskDto.json")
 const createFolderDtoSchema = __importStar(require("./schemas/createFolderDto.json"));
 const getDeskInfoDtoSchema = __importStar(require("./schemas/getDeskInfoDto.json"));
 const updateDeskSettingsBodyDtoSchema = __importStar(require("./schemas/updateDeskSettingsBodyDto.json"));
+const updateReviewSettingsBodyDtoSchema = __importStar(require("./schemas/updateReviewSettingsBodyDto.json"));
 const updateDeskSettingsParamsDtoSchema = __importStar(require("./schemas/updateDeskSettingsParamsDto.json"));
 const updateDeskBodyDtoSchema = __importStar(require("./schemas/updateDeskBodyDto.json"));
 const updateFeedSettingsBodyDtoSchema = __importStar(require("./schemas/updateFeedSettingsBodyDto.json"));
@@ -73,6 +76,7 @@ const validateCreateDeskDto = utils_1.ajv.compile(createDeskDtoSchema);
 const validateCreateFolderDto = utils_1.ajv.compile(createFolderDtoSchema);
 const validateGetDeskInfoDto = utils_1.ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = utils_1.ajv.compile(updateDeskSettingsBodyDtoSchema);
+const validateUpdateReviewSettingsBodyDto = utils_1.ajv.compile(updateReviewSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = utils_1.ajv.compile(updateDeskSettingsParamsDtoSchema);
 const validateUpdateDeskBodyDto = utils_1.ajv.compile(updateDeskBodyDtoSchema);
 const validateUpdateFeedSettingsBodyDto = utils_1.ajv.compile(updateFeedSettingsBodyDtoSchema);
@@ -188,10 +192,33 @@ async function createFolderCtr(req, res, next) {
         next(e);
     }
 }
+const getFolderContentsCtr = async (req, res, next) => {
+    try {
+        const { sub } = req.params;
+        const creatorSub = res.locals.userSub;
+        const contents = await CardService_1.default.getFolderContents(sub, creatorSub);
+        res.json(contents);
+    }
+    catch (e) {
+        next(e);
+    }
+};
+exports.getFolderContentsCtr = getFolderContentsCtr;
+const getFolderInfoCtr = async (req, res, next) => {
+    try {
+        const { sub } = req.params;
+        const info = await CardService_1.default.getFolderInfo(sub);
+        res.json(info);
+    }
+    catch (e) {
+        next(e);
+    }
+};
+exports.getFolderInfoCtr = getFolderInfoCtr;
 async function getFoldersCtr(req, res, next) {
     try {
         const creatorSub = res.locals.userSub;
-        const folders = await CardService_1.default.getFolders(creatorSub);
+        const folders = await CardService_1.default.getRootFolders(creatorSub);
         res.status(200).json(folders);
     }
     catch (e) {
@@ -205,7 +232,7 @@ async function createDeskCtr(req, res, next) {
                 errors: validateCreateDeskDto.errors,
             }));
         }
-        const { sub, title, description, isPublic } = req.body;
+        const { sub, title, description, isPublic, folder_sub } = req.body;
         const creatorSub = res.locals.userSub;
         const deskInfo = await CardService_1.default.createDesk({
             sub,
@@ -213,6 +240,7 @@ async function createDeskCtr(req, res, next) {
             description,
             public: isPublic,
             creatorSub,
+            folderSub: folder_sub,
         });
         res.json(deskInfo);
     }
@@ -398,6 +426,28 @@ async function updateDeskSettingsCtr(req, res, next) {
             creatorSub,
         });
         res.json({ updated: true });
+    }
+    catch (e) {
+        next(e);
+    }
+}
+async function updateReviewSettingsCtr(req, res, next) {
+    try {
+        const body = {
+            cards_per_session: req.body.cards_per_session,
+        };
+        if (!validateUpdateReviewSettingsBodyDto(body)) {
+            return next((0, http_errors_1.default)(422, 'Incorrect review settings body', {
+                errors: validateUpdateReviewSettingsBodyDto.errors,
+            }));
+        }
+        const creatorSub = res.locals.userSub;
+        await UserService_1.default.existProfile({ sub: creatorSub });
+        await CardService_1.default.updateReviewSettings({
+            body,
+            creatorSub,
+        });
+        res.sendStatus(204);
     }
     catch (e) {
         next(e);

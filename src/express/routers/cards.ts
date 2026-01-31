@@ -13,12 +13,15 @@ import {
   getDeskInfoCtr,
   getDesksCtr,
   getDeskSubsCtr,
+  getFolderContentsCtr,
+  getFolderInfoCtr,
   getFoldersCtr,
   restoreDeskCtr,
   updateCardCtr,
   updateDeskCtr,
   updateDeskSettingsCtr,
   updateFeedSettingsCtr,
+  updateReviewSettingsCtr,
 } from '../controllers/cards/cardCtr';
 
 const cards = Router();
@@ -29,6 +32,8 @@ cards.get('/desks/archived', tokenValidator, getArchivedDesksCtr);
 cards.get('/desks/short', tokenValidator, getDeskSubsCtr);
 cards.post('/cards/create', tokenValidator, createCardCtr);
 cards.get('/folders', tokenValidator, getFoldersCtr);
+cards.get('/folders/:sub', tokenValidator, getFolderInfoCtr);
+cards.get('/folders/:sub/contents', tokenValidator, getFolderContentsCtr);
 cards.post('/folders', tokenValidator, createFolderCtr);
 cards.post('/desks/create', tokenValidator, createDeskCtr);
 cards.get('/desks/:sub', tokenValidator, getDeskInfoCtr);
@@ -41,5 +46,6 @@ cards.delete('/cards/:sub', tokenValidator, deleteCardCtr);
 cards.put('/desks/:sub/restore', tokenValidator, restoreDeskCtr);
 cards.delete('/desks/:sub', tokenValidator, archivedDeskCtr);
 cards.put('/desks/:sub/settings', tokenValidator, updateDeskSettingsCtr);
+cards.put('/review/settings', tokenValidator, updateReviewSettingsCtr);
 
 export { cards };

@@ -19,7 +19,7 @@ export const ADD_CARDS_TO_BATCH = `
   WHERE user_sub = $2
   AND next_review <= NOW()
   ORDER BY next_review ASC
-  LIMIT 15
+  LIMIT $3
 `;
 
 export const MARK_BATCH_AS_NOTIFIED = `

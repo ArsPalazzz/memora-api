@@ -1,0 +1,12 @@
+{
+    "type": "object",
+    "required": ["cards_per_session"],
+    "additionalProperties": false,
+    "properties": {
+        "cards_per_session": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+        }
+    }
+}

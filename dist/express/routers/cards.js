@@ -12,6 +12,8 @@ cards.get('/desks/archived', middlewares_1.tokenValidator, cardCtr_1.getArchived
 cards.get('/desks/short', middlewares_1.tokenValidator, cardCtr_1.getDeskSubsCtr);
 cards.post('/cards/create', middlewares_1.tokenValidator, cardCtr_1.createCardCtr);
 cards.get('/folders', middlewares_1.tokenValidator, cardCtr_1.getFoldersCtr);
+cards.get('/folders/:sub', middlewares_1.tokenValidator, cardCtr_1.getFolderInfoCtr);
+cards.get('/folders/:sub/contents', middlewares_1.tokenValidator, cardCtr_1.getFolderContentsCtr);
 cards.post('/folders', middlewares_1.tokenValidator, cardCtr_1.createFolderCtr);
 cards.post('/desks/create', middlewares_1.tokenValidator, cardCtr_1.createDeskCtr);
 cards.get('/desks/:sub', middlewares_1.tokenValidator, cardCtr_1.getDeskInfoCtr);
@@ -24,3 +26,4 @@ cards.delete('/cards/:sub', middlewares_1.tokenValidator, cardCtr_1.deleteCardCt
 cards.put('/desks/:sub/restore', middlewares_1.tokenValidator, cardCtr_1.restoreDeskCtr);
 cards.delete('/desks/:sub', middlewares_1.tokenValidator, cardCtr_1.archivedDeskCtr);
 cards.put('/desks/:sub/settings', middlewares_1.tokenValidator, cardCtr_1.updateDeskSettingsCtr);
+cards.put('/review/settings', middlewares_1.tokenValidator, cardCtr_1.updateReviewSettingsCtr);

@@ -22,6 +22,7 @@ export async function createUserCtr(req: Request, res: Response, next: NextFunct
 
     const user = await userService.createUser({ email, pass: password });
     await cardService.createFeedSettings(user.sub);
+    await cardService.createReviewSettings(user.sub);
 
     res.json(user);
   } catch (e: unknown) {
@@ -37,9 +38,13 @@ export async function createUserCtr(req: Request, res: Response, next: NextFunct
 
 export async function getMyProfileCtr(req: Request, res: Response, next: NextFunction) {
   try {
-    const profile = await userService.getProfile({ sub: res.locals.userSub as string });
-    const settings = await cardService.getFeedSettingsByUserSub(res.locals.userSub as string);
-    res.json({ profile, settings });
+    const userSub = res.locals.userSub as string;
+
+    const profile = await userService.getProfile({ sub: userSub });
+    const settings = await cardService.getFeedSettingsByUserSub(userSub);
+    const reviewSettings = await cardService.getReviewSettingsByUserSub(userSub);
+
+    res.json({ profile, settings: { ...settings, reviewSettings } });
   } catch (e: unknown) {
     next(e);
   }

@@ -23,11 +23,11 @@ class ReviewRepository extends Table_1.default {
         };
         return this.insertItem(query, 'id');
     }
-    async addCardsToBatch(batchId, userSub) {
+    async addCardsToBatch(batchId, userSub, limit) {
         const query = {
             name: 'addCardsToBatch',
             text: ReviewRepositoryQueries_1.ADD_CARDS_TO_BATCH,
-            values: [batchId, userSub],
+            values: [batchId, userSub, limit],
         };
         await this.insertItem(query);
     }

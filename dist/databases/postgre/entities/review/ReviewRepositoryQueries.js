@@ -20,7 +20,7 @@ exports.ADD_CARDS_TO_BATCH = `
   WHERE user_sub = $2
   AND next_review <= NOW()
   ORDER BY next_review ASC
-  LIMIT 15
+  LIMIT $3
 `;
 exports.MARK_BATCH_AS_NOTIFIED = `
   UPDATE reviews.review_batch

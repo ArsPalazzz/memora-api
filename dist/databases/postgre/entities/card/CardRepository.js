@@ -184,6 +184,38 @@ class CardRepository extends Table_1.default {
         };
         return this.exists(query);
     }
+    async existDeskWithTitle(params) {
+        const query = {
+            name: 'existDeskWithTitle',
+            text: CardRepositoryQueries_1.EXIST_DESK_WITH_THIS_TITLE,
+            values: [params.title, params.creatorSub],
+        };
+        return this.exists(query);
+    }
+    async existDeskWithTitleAndFolder(params) {
+        const query = {
+            name: 'existDeskWithTitleAndFolder',
+            text: CardRepositoryQueries_1.EXIST_DESK_WITH_THIS_TITLE_AND_FOLDER,
+            values: [params.title, params.folderSub, params.creatorSub],
+        };
+        return this.exists(query);
+    }
+    async existFolderWithTitleAndParent(params) {
+        const query = {
+            name: 'existFolderWithTitleAndParent',
+            text: CardRepositoryQueries_1.EXIST_FOLDER_WITH_THIS_TITLE_AND_PARENT,
+            values: [params.title, params.folderSub, params.creatorSub],
+        };
+        return this.exists(query);
+    }
+    async existFolderWithTitle(params) {
+        const query = {
+            name: 'existFolderWithTitle',
+            text: CardRepositoryQueries_1.EXIST_FOLDER_WITH_THIS_TITLE,
+            values: [params.title, params.creatorSub],
+        };
+        return this.exists(query);
+    }
     async updateLastTimePlayedDesk(deskSub, tx) {
         return tx.query({
             name: 'updateLastTimePlayedDesk',
@@ -250,6 +282,14 @@ class CardRepository extends Table_1.default {
         };
         return this.exists(query);
     }
+    async addDeskToFolder(deskSub, folderSub) {
+        const query = {
+            name: 'addDeskToFolder',
+            text: CardRepositoryQueries_1.ADD_DESK_TO_FOLDER,
+            values: [folderSub, deskSub],
+        };
+        return this.insertItem(query);
+    }
     async haveAccessToFolder(folderSub, userSub) {
         const query = {
             name: 'haveAccessToFolder',
@@ -261,10 +301,63 @@ class CardRepository extends Table_1.default {
     async getFolders(creatorSub) {
         const query = {
             name: 'getFoldersByCreatorSub',
-            text: CardRepositoryQueries_1.GET_FOLDERS_BY_CREATOR_SUB,
+            text: CardRepositoryQueries_1.GET_FOLDER_TREE,
             values: [creatorSub],
         };
         return await this.getItems(query);
+    }
+    async getFolderContents(folderSub, creatorSub) {
+        const query = {
+            name: 'getFolderContents',
+            text: CardRepositoryQueries_1.GET_FOLDER_CONTENTS,
+            values: [folderSub, creatorSub],
+        };
+        const res = await this.getItems(query);
+        return res.map(({ childCount, ...item }) => ({
+            ...item,
+            totalCards: Number(item.totalCards),
+            newCards: Number(item.newCards),
+            dueCards: Number(item.dueCards),
+            learningCards: Number(item.learningCards),
+            masteredCards: Number(item.masteredCards),
+            deskCount: Number(item.deskCount),
+            folderCount: Number(childCount),
+        }));
+    }
+    async getFolderInfo(folderSub) {
+        const query = {
+            name: 'getFolderInfo',
+            text: CardRepositoryQueries_1.GET_FOLDER_INFO,
+            values: [folderSub],
+        };
+        const result = await this.getItem(query);
+        if (!result)
+            return null;
+        return {
+            sub: result.sub,
+            title: result.title,
+            description: result.description,
+            parentFolderSub: result.parentFolderSub,
+            createdAt: result.createdAt,
+            deskCount: Number(result.deskCount),
+            childCount: Number(result.childCount),
+        };
+    }
+    async getRootFolders(creatorSub) {
+        const query = {
+            name: 'getRootFolders',
+            text: CardRepositoryQueries_1.GET_ROOT_FOLDERS,
+            values: [creatorSub],
+        };
+        const res = await this.getItems(query);
+        console.log(res);
+        return res.map((item) => ({
+            sub: item.sub,
+            title: item.title,
+            description: item.description,
+            deskCount: Number(item.deskCount),
+            folderCount: Number(item.childCount),
+        }));
     }
     async updateDesk(params) {
         const query = {
