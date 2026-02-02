@@ -1,0 +1,10 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.notifications = void 0;
+const express_1 = require("express");
+const middlewares_1 = require("../middlewares");
+const notificationCtr_1 = require("../controllers/notifications/notificationCtr");
+const notifications = (0, express_1.Router)();
+exports.notifications = notifications;
+notifications.post('/notifications/subscribe', middlewares_1.tokenValidator, notificationCtr_1.saveTokenCtr);
+notifications.post('/notifications/unsubscribe', middlewares_1.tokenValidator, notificationCtr_1.deleteTokenCtr);

@@ -1,0 +1,39 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.GET_USERS_WITH_DUE_CARDS = exports.UPSERT_USER_CARDS_SRS = exports.GET_USER_CARD_SRS = void 0;
+exports.GET_USER_CARD_SRS = `
+SELECT *
+      FROM cards.user_card_srs
+      WHERE user_sub = $1 AND card_sub = $2
+`;
+exports.UPSERT_USER_CARDS_SRS = `
+INSERT INTO cards.user_card_srs (
+        user_sub,
+        card_sub,
+        repetitions,
+        interval_minutes,
+        ease_factor,
+        last_review,
+        next_review
+      )
+      VALUES ($1,$2,$3,$4,$5,NOW(),$6)
+      ON CONFLICT (user_sub, card_sub)
+      DO UPDATE SET
+        repetitions = $3,
+        interval_minutes = $4,
+        ease_factor = $5,
+        last_review = NOW(),
+        next_review = $6
+`;
+exports.GET_USERS_WITH_DUE_CARDS = `
+    SELECT 
+        ucs.user_sub,
+            COUNT(*) as due_count
+        FROM cards.user_card_srs ucs
+          INNER JOIN cards.card c ON c.sub = ucs.card_sub
+          INNER JOIN cards.desk d ON d.sub = c.desk_sub
+          WHERE ucs.next_review <= NOW()
+            AND d.status = 'active'
+        GROUP BY ucs.user_sub
+        HAVING COUNT(*) >= 5
+`;
