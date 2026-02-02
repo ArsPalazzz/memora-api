@@ -99,7 +99,7 @@ export class CardRepository extends Table {
 
   async create(params: CreateCardParams) {
     const { sub, deskSub, frontVariants, backVariants, imageUuid, copyOf } = params;
-    console.log(params);
+
     const query: Query = {
       name: 'createCard',
       text: `
@@ -520,7 +520,6 @@ export class CardRepository extends Table {
       deskCount: string;
       childCount: string;
     }>(query);
-    console.log(res);
 
     return res.map((item) => ({
       sub: item.sub,
