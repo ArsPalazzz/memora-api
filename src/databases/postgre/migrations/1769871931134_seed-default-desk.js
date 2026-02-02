@@ -13,7 +13,7 @@ export const up = async (pgm) => {
     sub: 'acde070d-8c4c-4f0d-9d8a-162843c10333',
     title: 'Default Desk',
     description: 'Default system desk for all users',
-    creatorSub: '9baf5ff5-eb87-45c2-8079-79961c871b9f',
+    creatorSub: '8c183888-bd68-4964-8a0e-dfd2382cc605',
     public: true,
     status: 'active',
   };
