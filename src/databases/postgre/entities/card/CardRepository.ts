@@ -97,6 +97,65 @@ export class CardRepository extends Table {
     }>(query);
   }
 
+  async getDesksWithCard(originalCardId: number): Promise<string[]> {
+    const query: Query = {
+      name: 'getDesksWithCard',
+      text: `
+      SELECT desk_sub
+      FROM cards.card
+      WHERE copy_of = $1
+    `,
+      values: [originalCardId],
+    };
+
+    const cards = await this.getItems<{ desk_sub: string }>(query);
+    return cards.map((card) => card.desk_sub);
+  }
+
+  async removeCardFromDesks(originalCardId: number, deskSubs: string[]) {
+    for (const deskSub of deskSubs) {
+      const query: Query = {
+        name: 'removeCardFromDesks',
+        text: `
+          DELETE FROM cards.card
+          WHERE copy_of = $1
+          AND desk_sub = $2
+        `,
+        values: [originalCardId, deskSub],
+      };
+
+      await this.getItem(query);
+    }
+  }
+
+  async createCardClone(card: {
+    sub: string;
+    deskSub: string;
+    frontVariants: string[];
+    backVariants: string[];
+    imageUuid?: string;
+    copyOf: number;
+  }): Promise<void> {
+    const query: Query = {
+      name: 'createCardClone',
+      text: `
+      INSERT INTO cards.card 
+        (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `,
+      values: [
+        card.sub,
+        card.deskSub,
+        JSON.stringify(card.frontVariants),
+        JSON.stringify(card.backVariants),
+        card.imageUuid || null,
+        card.copyOf,
+      ],
+    };
+
+    await this.insertItem(query);
+  }
+
   async create(params: CreateCardParams) {
     const { sub, deskSub, frontVariants, backVariants, imageUuid, copyOf } = params;
 

@@ -71,6 +71,18 @@ export class CardService {
     return res.map((item) => item.card_sub);
   }
 
+  async getDesksWithCard(originalCardId: number): Promise<string[]> {
+    return await this.cardRepository.getDesksWithCard(originalCardId);
+  }
+
+  async getCardBySub(cardSub: string) {
+    return await this.cardRepository.getCardBySub(cardSub);
+  }
+
+  async removeCardFromDesks(originalCardId: number, deskSubs: string[]) {
+    await this.cardRepository.removeCardFromDesks(originalCardId, deskSubs);
+  }
+
   async getCardForFeed(params: {
     userSub: string;
     exclude: string[];
@@ -161,23 +173,21 @@ export class CardService {
     return newCardSub;
   }
 
-  async cloneCardToDesks(cardSub: string, deskSubs: string[]) {
-    const originalCard = await this.cardRepository.getCardBySub(cardSub);
-    if (!originalCard) {
-      throw new NotFoundError('Card not found');
-    }
+  async cloneCardToDesks(originalCard: any, deskSubs: string[]) {
+    if (deskSubs.length === 0) return;
 
-    for (const sub of deskSubs) {
-      const newCardSub = uuidV4();
-      await this.cardRepository.create({
-        sub: newCardSub,
-        deskSub: sub,
+    const insertPromises = deskSubs.map((deskSub) =>
+      this.cardRepository.createCardClone({
+        sub: uuidV4(),
+        deskSub,
         frontVariants: originalCard.front_variants,
         backVariants: originalCard.back_variants,
         imageUuid: originalCard.image_uuid,
         copyOf: originalCard.id,
-      });
-    }
+      })
+    );
+
+    await Promise.all(insertPromises);
   }
 
   async isDeskOwner(userSub: string, deskSub: string) {

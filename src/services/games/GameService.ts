@@ -146,9 +146,10 @@ export class GameService {
 
     const normalizedAnswer = this.normalize(answer);
 
-    const isCorrect = correctVariants.some(
-      (variant) => this.normalize(variant) === normalizedAnswer
-    );
+    const isCorrect = correctVariants.some((variant) => {
+      const mainPart = variant.split('(')[0].trim();
+      return this.normalize(mainPart) === normalizedAnswer;
+    });
 
     await this.gameSessionRepository.saveAnswer({
       sessionCardId,
@@ -216,9 +217,10 @@ export class GameService {
 
     const normalizedAnswer = this.normalize(answer);
 
-    const isCorrect = correctVariants.some(
-      (variant) => this.normalize(variant) === normalizedAnswer
-    );
+    const isCorrect = correctVariants.some((variant) => {
+      const mainPart = variant.split('(')[0].trim();
+      return this.normalize(mainPart) === normalizedAnswer;
+    });
 
     await this.gameSessionRepository.saveAnswer({
       sessionCardId,
@@ -415,7 +417,31 @@ export class GameService {
       throw new ForbiddenError('You are not the owner of deck/decks');
     }
 
-    await this.cardService.cloneCardToDesks(cardSub, deskSubs);
+    const originalCard = await this.cardService.getCardBySub(cardSub);
+    if (!originalCard) {
+      throw new NotFoundError('Card not found');
+    }
+
+    const currentDesksWithCard = await this.cardService.getDesksWithCard(originalCard.id);
+
+    const desksToRemove = currentDesksWithCard.filter((deskSub) => !deskSubs.includes(deskSub));
+
+    const desksToAdd = deskSubs.filter((deskSub) => !currentDesksWithCard.includes(deskSub));
+
+    if (desksToRemove.length > 0) {
+      const isOwnerOfRemovalDecks = await this.cardService.isDesksOwner(userSub, desksToRemove);
+      if (!isOwnerOfRemovalDecks) {
+        throw new ForbiddenError('You are not the owner of some decks');
+      }
+    }
+
+    if (desksToRemove.length > 0) {
+      await this.cardService.removeCardFromDesks(originalCard.id, desksToRemove);
+    }
+
+    if (desksToAdd.length > 0) {
+      await this.cardService.cloneCardToDesks(originalCard, desksToAdd);
+    }
   }
 
   private async getUserTopicPreferences(userSub: string) {
