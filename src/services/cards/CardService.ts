@@ -314,16 +314,16 @@ export class CardService {
       );
     }
 
-    const deskInfo = await this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub });
-    if (!deskInfo) return;
+    const [deskInfo, weeklyStats] = await Promise.all([
+      this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub }),
+      this.gameSessionRepository.getWeeklyDeskStats(sub, desk_sub),
+    ]);
+
+    if (!deskInfo || !weeklyStats) return;
 
     const { stats, cards, ...rest } = deskInfo;
-    const limitedCards = cards.slice(0, 20);
 
-    const weeklyStats = await this.gameSessionRepository.getWeeklyDeskStats(sub, desk_sub);
-    if (!weeklyStats) return;
-
-    return { ...rest, cards: limitedCards, stats: { ...stats, weeklyStats } };
+    return { ...rest, cards, stats: { ...stats, weeklyStats } };
   }
 
   async getCardsDesk(payload: GetDeskPayload) {

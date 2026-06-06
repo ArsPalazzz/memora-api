@@ -35,11 +35,13 @@ export class GameService {
       const { cards_per_session, card_orientation } = deskSettings;
 
       const cards = await this.cardService.getCardSubsForPlay(deskSub, cards_per_session);
+      const direction = this.resolveDirection(card_orientation);
 
-      for (const c of cards) {
-        const direction = this.resolveDirection(card_orientation);
-        await this.gameSessionCardRepository.create(sessionId, c.sub, direction, tx);
-      }
+      await this.gameSessionCardRepository.createBulk(
+        sessionId,
+        cards.map((c) => ({ cardSub: c.sub, direction })),
+        tx
+      );
 
       await this.cardService.updateLastTimePlayedDesk(deskSub, tx);
 
@@ -66,11 +68,13 @@ export class GameService {
       await this.gameSessionRepository.createReview(sessionId, userSub, batchId, tx);
 
       const cardSubs = await this.reviewService.getCardSubsByBatchId(batchId);
+      const direction = this.resolveDirection('normal');
 
-      for (const sub of cardSubs) {
-        const direction = this.resolveDirection('normal');
-        await this.gameSessionCardRepository.create(sessionId, sub, direction, tx);
-      }
+      await this.gameSessionCardRepository.createBulk(
+        sessionId,
+        cardSubs.map((sub) => ({ cardSub: sub, direction })),
+        tx
+      );
 
       await tx.commit();
     } catch (e) {
@@ -336,13 +340,13 @@ export class GameService {
 
     if (!cards || cards.length === 0) return null;
 
-    for (const card of cards) {
-      await this.gameSessionCardRepository.createWithoutTx(
-        sessionId,
-        card.sub,
-        card.card_direction
-      );
-    }
+    await this.gameSessionCardRepository.createBulk(
+      sessionId,
+      cards.map((card) => ({
+        cardSub: card.sub,
+        direction: card.card_direction,
+      }))
+    );
 
     return {
       cards: cards.map((c) => ({

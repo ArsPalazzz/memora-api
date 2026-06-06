@@ -2,6 +2,7 @@ import { Query } from '../..';
 import Table, { PgTransaction } from '../Table';
 import {
   CREATE_GAME_SESSION_CARD,
+  CREATE_GAME_SESSION_CARDS_BULK,
   GET_CARD_IN_GAME_SESSION_BY_SUB2,
   GET_LAST_ANSWERED_CARD,
   GET_NEXT_IN_SESSION_CARD,
@@ -14,6 +15,29 @@ export class GameSessionCardRepository extends Table {
       text: CREATE_GAME_SESSION_CARD,
       values: [sessionId, cardSub, direction],
     });
+  }
+
+  async createBulk(
+    sessionId: string,
+    cards: { cardSub: string; direction: string }[],
+    tx?: PgTransaction
+  ) {
+    if (cards.length === 0) return;
+
+    const cardSubs = cards.map((c) => c.cardSub);
+    const directions = cards.map((c) => c.direction);
+
+    const query = {
+      name: 'createGameSessionCardsBulk',
+      text: CREATE_GAME_SESSION_CARDS_BULK,
+      values: [sessionId, cardSubs, directions],
+    };
+
+    if (tx) {
+      return tx.query(query);
+    }
+
+    await this.insertItem(query);
   }
 
   async createWithoutTx(sessionId: string, cardSub: string, direction: string) {
