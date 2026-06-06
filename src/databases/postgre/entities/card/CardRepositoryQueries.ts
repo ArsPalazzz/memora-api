@@ -571,7 +571,6 @@ export const GET_DESK_DETAILS = `
       ) as examples
     FROM cards.card c
     LEFT JOIN cards.user_card_srs ucs ON ucs.card_sub = c.sub AND ucs.user_sub = $2
-    INNER JOIN limited_card_subs lcs ON lcs.sub = c.sub
     LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
     WHERE c.desk_sub = $1
     GROUP BY 
