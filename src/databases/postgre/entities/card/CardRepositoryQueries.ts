@@ -554,38 +554,39 @@ export const GET_DESK_DETAILS = `
     LEFT JOIN cards.desk_settings ds ON ds.desk_sub = d.sub
     WHERE d.sub = $1
   ),
-  stats_calculation AS (
-    SELECT 
-      COUNT(*) as total_cards,
-      COUNT(CASE WHEN ucs.repetitions = 0 OR ucs.repetitions IS NULL THEN 1 END) as new_cards,
-      COUNT(CASE WHEN ucs.next_review <= NOW() THEN 1 END) as due_today,
-      COUNT(CASE WHEN ucs.interval_minutes > 43200 THEN 1 END) as mastered_cards,
-      COALESCE(AVG(COALESCE(ucs.ease_factor, 2.5)), 0) as avg_ease_factor
-    FROM cards.card c
-    LEFT JOIN cards.user_card_srs ucs ON ucs.card_sub = c.sub AND ucs.user_sub = $2
-    WHERE c.desk_sub = $1
-  ),
-  limited_card_subs AS (
-    SELECT c.sub
-    FROM cards.card c
-    WHERE c.desk_sub = $1
-    ORDER BY c.created_at DESC
-    LIMIT 20
-  ),
-  limited_cards AS (
+  desk_cards AS (
     SELECT 
       c.sub,
       c.front_variants,
       c.back_variants,
       c.created_at,
+      ucs.repetitions,
+      ucs.interval_minutes,
+      ucs.ease_factor,
+      ucs.next_review,
+      ucs.last_review,
       COALESCE(
         json_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.sentence IS NOT NULL),
         '[]'::json
       ) as examples
     FROM cards.card c
+    LEFT JOIN cards.user_card_srs ucs ON ucs.card_sub = c.sub AND ucs.user_sub = $2
     INNER JOIN limited_card_subs lcs ON lcs.sub = c.sub
     LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
-    GROUP BY c.sub, c.front_variants, c.back_variants, c.created_at
+    WHERE c.desk_sub = $1
+    GROUP BY 
+      c.sub, c.front_variants, c.back_variants, c.created_at,
+      ucs.repetitions, ucs.interval_minutes, ucs.ease_factor, 
+      ucs.next_review, ucs.last_review
+  ),
+  stats_calculation AS (
+    SELECT 
+      COUNT(*) as total_cards,
+      COUNT(CASE WHEN repetitions = 0 OR repetitions IS NULL THEN 1 END) as new_cards,
+      COUNT(CASE WHEN next_review <= NOW() THEN 1 END) as due_today,
+      COUNT(CASE WHEN interval_minutes > 43200 THEN 1 END) as mastered_cards,
+      COALESCE(AVG(COALESCE(ease_factor, 2.5)), 0) as avg_ease_factor
+    FROM desk_cards
   )
   SELECT 
     dd.sub,
@@ -599,14 +600,14 @@ export const GET_DESK_DETAILS = `
     COALESCE(
       json_agg(
         json_build_object(
-          'sub', lc.sub,
-          'front_variants', lc.front_variants,
-          'back_variants', lc.back_variants,
-          'created_at', lc.created_at,
-          'examples', lc.examples
+          'sub', dc.sub,
+          'front_variants', dc.front_variants,
+          'back_variants', dc.back_variants,
+          'created_at', dc.created_at,
+          'examples', dc.examples
         )
-        ORDER BY lc.created_at DESC
-      ) FILTER (WHERE lc.sub IS NOT NULL), '[]'
+        ORDER BY dc.created_at DESC
+      ) FILTER (WHERE dc.sub IS NOT NULL), '[]'
     ) AS cards,
     json_build_object(
       'total_cards', sc.total_cards,
@@ -616,7 +617,7 @@ export const GET_DESK_DETAILS = `
       'avg_ease_factor', sc.avg_ease_factor
     ) AS stats
   FROM desk_data dd
-  LEFT JOIN limited_cards lc ON true
+  LEFT JOIN desk_cards dc ON true
   LEFT JOIN stats_calculation sc ON true
   GROUP BY 
     dd.sub, dd.title, dd.description, dd.created_at, 
