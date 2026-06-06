@@ -4,7 +4,7 @@ export const CREATE_GAME_SESSION_CARD = `
 
 export const CREATE_GAME_SESSION_CARDS_BULK = `
   INSERT INTO games.session_card(session_id, card_sub, direction, created_at)
-  SELECT $1, unnest($2::uuid[]), unnest($3::text[]), NOW()`;
+  SELECT $1, unnest($2::uuid[]), unnest($3::text[])::games.card_direction_enum, NOW()`;
 
 export const GET_NEXT_IN_SESSION_CARD = `
   WITH session_info AS (
