@@ -20,11 +20,10 @@ import {
   buildExistingLocationLabel,
   normalizeCardText,
   parseAnkiTagsToFolderPath,
+  sanitizeImportText,
 } from './ankiImport.utils';
 import logger from '../../logger';
 import { LanguageCode } from '../cards/card.const';
-
-const PROGRESS_UPDATE_EVERY = 10;
 
 export class AnkiImportService {
   private readonly activeJobs = new Set<string>();
@@ -233,7 +232,16 @@ export class AnkiImportService {
     };
 
     for (const deskPayload of payload.desks) {
-      const deskResult = await this.importDesk(userSub, deskPayload, payload, folderCache);
+      const deskResult = await this.importDesk(
+        userSub,
+        deskPayload,
+        payload,
+        folderCache,
+        async () => {
+          progress += 1;
+          await onProgress(progress);
+        }
+      );
       deskResults.push(deskResult);
 
       if (deskResult.skipped) {
@@ -247,14 +255,7 @@ export class AnkiImportService {
       summary.cardsAdded += deskResult.cardsAdded;
       summary.cardsSkipped += deskResult.cardsSkipped;
       summary.examplesAdded += deskResult.examplesAdded;
-
-      progress += deskPayload.cards.length;
-      if (progress % PROGRESS_UPDATE_EVERY === 0) {
-        await onProgress(progress);
-      }
     }
-
-    await onProgress(progress);
 
     return { desks: deskResults, summary };
   }
@@ -263,7 +264,8 @@ export class AnkiImportService {
     userSub: string,
     deskPayload: ImportDeskRequest,
     payload: ImportJobPayload,
-    folderCache: Map<string, string>
+    folderCache: Map<string, string>,
+    onCardProcessed: () => Promise<void>
   ) {
     const strategy = deskPayload.strategy ?? payload.defaultStrategy;
     const folderPath = deskPayload.folderPath.length
@@ -273,6 +275,10 @@ export class AnkiImportService {
     const existingDeskSub = await this.findExistingDeskSub(userSub, deskPayload.title, folderPath);
 
     if (strategy === 'skip' && existingDeskSub) {
+      for (let index = 0; index < deskPayload.cards.length; index += 1) {
+        await onCardProcessed();
+      }
+
       return {
         clientId: deskPayload.clientId,
         title: deskPayload.title,
@@ -320,12 +326,21 @@ export class AnkiImportService {
     let examplesAdded = 0;
 
     for (const card of deskPayload.cards) {
-      const normalizedFronts = card.front.map(normalizeCardText).filter(Boolean);
-      const duplicateKey = normalizedFronts.find((front) => existingByFront.has(front));
+      const front = card.front.map(sanitizeImportText).filter(Boolean);
+      const back = card.back.map(sanitizeImportText).filter(Boolean);
+      const examples = card.examples.map(sanitizeImportText).filter(Boolean);
+
+      if (!front.length || !back.length) {
+        await onCardProcessed();
+        continue;
+      }
+
+      const normalizedFronts = front.map(normalizeCardText).filter(Boolean);
+      const duplicateKey = normalizedFronts.find((frontVariant) => existingByFront.has(frontVariant));
 
       if (duplicateKey && strategy === 'merge') {
         const existing = existingByFront.get(duplicateKey)!;
-        const newExamples = card.examples.filter(
+        const newExamples = examples.filter(
           (example) => !existing.examples.some((item) => normalizeCardText(item) === normalizeCardText(example))
         );
 
@@ -339,11 +354,13 @@ export class AnkiImportService {
         }
 
         cardsSkipped += 1;
+        await onCardProcessed();
         continue;
       }
 
       if (duplicateKey && strategy !== 'replace') {
         cardsSkipped += 1;
+        await onCardProcessed();
         continue;
       }
 
@@ -351,23 +368,24 @@ export class AnkiImportService {
       await this.cardRepository.createCard({
         sub: cardSub,
         desk_sub: deskSub!,
-        front: card.front,
-        back: card.back,
+        front,
+        back,
       });
 
-      if (card.examples.length) {
+      if (examples.length) {
         await this.cardExampleRepository.createMany({
           cardSub,
-          sentences: card.examples,
+          sentences: examples,
         });
-        examplesAdded += card.examples.length;
+        examplesAdded += examples.length;
       }
 
-      for (const front of card.front) {
-        existingByFront.set(normalizeCardText(front), { sub: cardSub, examples: card.examples });
+      for (const frontVariant of front) {
+        existingByFront.set(normalizeCardText(frontVariant), { sub: cardSub, examples });
       }
 
       cardsAdded += 1;
+      await onCardProcessed();
     }
 
     return {

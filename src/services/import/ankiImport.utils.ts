@@ -1,5 +1,27 @@
+export function stripHtml(value: string): string {
+  if (!value) return '';
+
+  return value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\u00a0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export function sanitizeImportText(value: string): string {
+  return stripHtml(value);
+}
+
 export function normalizeCardText(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+  return sanitizeImportText(value).toLowerCase();
 }
 
 export function splitBackVariants(backText: string): string[] {
