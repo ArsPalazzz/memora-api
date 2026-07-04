@@ -16,23 +16,26 @@ export const EXIST_DESK = `
 
 export const EXIST_DESK_WITH_THIS_TITLE = `
   SELECT EXISTS (
-    SELECT 1 
+    SELECT 1
     FROM cards.desk d
-    INNER JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
     WHERE d.title = $1
-      AND fd.folder_sub IS NULL
       AND d.creator_sub = $2
+      AND ($3::uuid IS NULL OR d.sub != $3)
+      AND NOT EXISTS (
+        SELECT 1 FROM cards.folder_desk fd WHERE fd.desk_sub = d.sub
+      )
   );
 `;
 
 export const EXIST_DESK_WITH_THIS_TITLE_AND_FOLDER = `
   SELECT EXISTS (
-    SELECT 1 
+    SELECT 1
     FROM cards.desk d
     INNER JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
     WHERE d.title = $1
       AND fd.folder_sub = $2
       AND d.creator_sub = $3
+      AND ($4::uuid IS NULL OR d.sub != $4)
   );
 `;
 
@@ -689,6 +692,45 @@ export const GET_DESK_TITLE = `
 
 export const REMOVE_DESK_FROM_FOLDERS = `
   DELETE FROM cards.folder_desk WHERE desk_sub = $1;
+`;
+
+export const DELETE_CARDS_BY_DESK_SUB = `
+  DELETE FROM cards.card WHERE desk_sub = $1;
+`;
+
+export const GET_DESK_SUB_BY_TITLE_IN_FOLDER = `
+  SELECT d.sub
+  FROM cards.desk d
+  INNER JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
+  WHERE d.title = $1
+    AND fd.folder_sub = $2
+    AND d.creator_sub = $3
+  LIMIT 1;
+`;
+
+export const GET_DESK_SUB_BY_TITLE_AT_ROOT = `
+  SELECT d.sub
+  FROM cards.desk d
+  WHERE d.title = $1
+    AND d.creator_sub = $2
+    AND NOT EXISTS (
+      SELECT 1 FROM cards.folder_desk fd WHERE fd.desk_sub = d.sub
+    )
+  LIMIT 1;
+`;
+
+export const GET_CARDS_WITH_EXAMPLES_BY_DESK = `
+  SELECT
+    c.sub,
+    c.front_variants,
+    COALESCE(
+      array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
+      ARRAY[]::text[]
+    ) AS examples
+  FROM cards.card c
+  LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
+  WHERE c.desk_sub = $1
+  GROUP BY c.sub, c.front_variants;
 `;
 
 export const UPDATE_FOLDER_PARENT = `

@@ -36,6 +36,10 @@ import {
   INSERT_DESK_SETTINGS,
   INSERT_FOLDER,
   IS_FOLDER_DESCENDANT_OR_SELF,
+  DELETE_CARDS_BY_DESK_SUB,
+  GET_CARDS_WITH_EXAMPLES_BY_DESK,
+  GET_DESK_SUB_BY_TITLE_AT_ROOT,
+  GET_DESK_SUB_BY_TITLE_IN_FOLDER,
   REMOVE_DESK_FROM_FOLDERS,
   RESTORE_DESK,
   UPDATE_CARD,
@@ -369,11 +373,15 @@ export class CardRepository extends Table {
     return this.exists(query);
   }
 
-  async existDeskWithTitle(params: { title: string; creatorSub: string }) {
+  async existDeskWithTitle(params: {
+    title: string;
+    creatorSub: string;
+    excludeDeskSub?: string;
+  }) {
     const query: Query = {
       name: 'existDeskWithTitle',
       text: EXIST_DESK_WITH_THIS_TITLE,
-      values: [params.title, params.creatorSub],
+      values: [params.title, params.creatorSub, params.excludeDeskSub ?? null],
     };
 
     return this.exists(query);
@@ -383,11 +391,17 @@ export class CardRepository extends Table {
     title: string;
     folderSub: string;
     creatorSub: string;
+    excludeDeskSub?: string;
   }) {
     const query: Query = {
       name: 'existDeskWithTitleAndFolder',
       text: EXIST_DESK_WITH_THIS_TITLE_AND_FOLDER,
-      values: [params.title, params.folderSub, params.creatorSub],
+      values: [
+        params.title,
+        params.folderSub,
+        params.creatorSub,
+        params.excludeDeskSub ?? null,
+      ],
     };
 
     return this.exists(query);
@@ -791,6 +805,56 @@ export class CardRepository extends Table {
     };
 
     return this.updateItems(query);
+  }
+
+  async getDeskSubByTitleInFolder(params: {
+    title: string;
+    folderSub: string;
+    creatorSub: string;
+  }) {
+    const query: Query = {
+      name: 'getDeskSubByTitleInFolder',
+      text: GET_DESK_SUB_BY_TITLE_IN_FOLDER,
+      values: [params.title, params.folderSub, params.creatorSub],
+    };
+
+    const result = await this.getItem<{ sub: string }>(query);
+    return result?.sub ?? null;
+  }
+
+  async getDeskSubByTitleAtRoot(params: { title: string; creatorSub: string }) {
+    const query: Query = {
+      name: 'getDeskSubByTitleAtRoot',
+      text: GET_DESK_SUB_BY_TITLE_AT_ROOT,
+      values: [params.title, params.creatorSub],
+    };
+
+    const result = await this.getItem<{ sub: string }>(query);
+    return result?.sub ?? null;
+  }
+
+  async deleteCardsByDeskSub(deskSub: string) {
+    const query: Query = {
+      name: 'deleteCardsByDeskSub',
+      text: DELETE_CARDS_BY_DESK_SUB,
+      values: [deskSub],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async getCardsWithExamplesByDesk(deskSub: string) {
+    const query: Query = {
+      name: 'getCardsWithExamplesByDesk',
+      text: GET_CARDS_WITH_EXAMPLES_BY_DESK,
+      values: [deskSub],
+    };
+
+    return this.getItems<{
+      sub: string;
+      front_variants: string[];
+      examples: string[];
+    }>(query);
   }
 }
 

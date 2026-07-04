@@ -384,24 +384,11 @@ export class CardService {
       }
     }
 
-    let existWithThisTitle: boolean | undefined = true;
-
-    if (payload.folderSub) {
-      existWithThisTitle = await this.cardRepository.existDeskWithTitleAndFolder({
-        title: payload.title,
-        folderSub: payload.folderSub,
-        creatorSub: payload.creatorSub,
-      });
-    } else {
-      existWithThisTitle = await this.cardRepository.existDeskWithTitle({
-        title: payload.title,
-        creatorSub: payload.creatorSub,
-      });
-    }
-
-    if (existWithThisTitle) {
-      throw new Error(`Desk with title = ${payload.title} is already exist`);
-    }
+    await this.assertDeskTitleAvailable({
+      title: payload.title,
+      creatorSub: payload.creatorSub,
+      folderSub: payload.folderSub,
+    });
 
     const created_at = await this.cardRepository.createDesk({
       ...rest,
@@ -451,7 +438,8 @@ export class CardService {
     }
 
     if (!payload.parentFolderSub) {
-      return await this.cardRepository.createFolder({ sub, ...payload });
+      await this.cardRepository.createFolder({ sub, ...payload });
+      return { sub };
     }
 
     const exists = await this.cardRepository.existFolderBySub(payload.parentFolderSub);
@@ -470,6 +458,7 @@ export class CardService {
     }
 
     await this.cardRepository.createFolder({ sub, ...payload });
+    return { sub };
   }
 
   async getRootFolders(creatorSub: string) {
@@ -532,24 +521,14 @@ export class CardService {
           `User with sub = ${creatorSub} don't have access to folder with sub = ${folderSub}`
         );
       }
-
-      const titleExists = await this.cardRepository.existDeskWithTitleAndFolder({
-        title,
-        folderSub,
-        creatorSub,
-      });
-      if (titleExists) {
-        throw new BadRequestError(`Desk with title = ${title} already exists in this folder`);
-      }
-    } else {
-      const titleExists = await this.cardRepository.existDeskWithTitle({
-        title,
-        creatorSub,
-      });
-      if (titleExists) {
-        throw new BadRequestError(`Desk with title = ${title} already exists at root level`);
-      }
     }
+
+    await this.assertDeskTitleAvailable({
+      title,
+      creatorSub,
+      folderSub,
+      excludeDeskSub: deskSub,
+    });
 
     await this.cardRepository.removeDeskFromFolders(deskSub);
 
@@ -655,6 +634,17 @@ export class CardService {
       throw new ForbiddenError(
         `CardService: user with sub = ${creatorSub} cannot update desk settings with desk sub = ${deskSub}`
       );
+    }
+
+    const currentTitle = await this.cardRepository.getDeskTitle(deskSub);
+    if (currentTitle && body.title !== currentTitle) {
+      const folderSub = await this.cardRepository.getDeskFolderSub(deskSub);
+      await this.assertDeskTitleAvailable({
+        title: body.title,
+        creatorSub,
+        folderSub,
+        excludeDeskSub: deskSub,
+      });
     }
 
     await this.cardRepository.updateDesk({
@@ -859,6 +849,36 @@ export class CardService {
       userSub: creatorSub,
       cards_per_session: body.cards_per_session,
     });
+  }
+
+  private async assertDeskTitleAvailable(params: {
+    title: string;
+    creatorSub: string;
+    folderSub: string | null;
+    excludeDeskSub?: string;
+  }) {
+    const { title, creatorSub, folderSub, excludeDeskSub } = params;
+
+    const titleExists = folderSub
+      ? await this.cardRepository.existDeskWithTitleAndFolder({
+          title,
+          folderSub,
+          creatorSub,
+          excludeDeskSub,
+        })
+      : await this.cardRepository.existDeskWithTitle({
+          title,
+          creatorSub,
+          excludeDeskSub,
+        });
+
+    if (titleExists) {
+      throw new BadRequestError(
+        folderSub
+          ? `Desk with title = ${title} already exists in this folder`
+          : `Desk with title = ${title} already exists at root level`
+      );
+    }
   }
 
   private calculateSrs(prev: any | null, quality: number) {
