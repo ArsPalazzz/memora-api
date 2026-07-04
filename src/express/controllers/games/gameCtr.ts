@@ -224,10 +224,10 @@ export async function revealInFeedSessionCtr(req: Request, res: Response, next: 
       );
     }
 
-    if (!validateAnswerInGameSessionBodyDto(req.body)) {
+    if (!validateRevealInGameSessionBodyDto(req.body)) {
       return next(
         createError(422, 'Incorrect reveal in feed body', {
-          errors: validateAnswerInGameSessionBodyDto.errors,
+          errors: validateRevealInGameSessionBodyDto.errors,
         })
       );
     }
