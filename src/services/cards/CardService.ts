@@ -360,9 +360,56 @@ export class CardService {
       backLanguage: deskSettings?.back_language ?? DEFAULT_BACK_LANGUAGE,
     };
 
-    this.generateExamples(sub, payload.front, payload.back, languageConfig);
+    void this.generateExamples(sub, payload.front, payload.back, languageConfig);
 
     return sub;
+  }
+
+  async regenerateExamples(payload: { cardSub: string; creatorSub: string }) {
+    const { cardSub, creatorSub } = payload;
+    const exist = await this.cardRepository.existCardBySub({ sub: cardSub });
+    if (!exist) {
+      throw new NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToCard({
+      user_sub: creatorSub,
+      card_sub: cardSub,
+    });
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `CardService: user with sub = ${creatorSub} cannot regenerate examples for card with sub = ${cardSub}`
+      );
+    }
+
+    const card = await this.cardRepository.getCardBySub(cardSub);
+    if (!card) {
+      throw new NotFoundError(`CardService: card with sub = ${cardSub} not found`);
+    }
+
+    const front = card.front_variants ?? [];
+    const back = card.back_variants ?? [];
+    if (!front.length || !back.length) {
+      throw new BadRequestError('Card must have front and back variants to generate examples');
+    }
+
+    const deskSettings = await this.deskSettingsRepository.getByDeskSub(card.desk_sub);
+    const languageConfig = {
+      exampleLanguage: deskSettings?.example_language ?? DEFAULT_EXAMPLE_LANGUAGE,
+      frontLanguage: deskSettings?.front_language ?? DEFAULT_FRONT_LANGUAGE,
+      backLanguage: deskSettings?.back_language ?? DEFAULT_BACK_LANGUAGE,
+    };
+
+    await this.cardExampleRepository.deleteByCardSub(cardSub);
+
+    const examples = await this.generateAndSaveExamples(
+      cardSub,
+      front,
+      back,
+      languageConfig
+    );
+
+    return { examples };
   }
 
   async createDesk(payload: {
@@ -959,22 +1006,37 @@ export class CardService {
     }
   ) {
     try {
-      if (!front.length || !back.length) return;
-
-      const isProd = process.env.NODE_ENV === 'production';
-
-      const examples = isProd
-        ? await this.generateExamplesWithGemini(front, back, languageConfig)
-        : await this.getExamplesTemplates(front, languageConfig.exampleLanguage);
-
-      if (examples.length > 0) {
-        await this.cardExampleRepository.createMany({ cardSub, sentences: examples });
-      } else {
-        console.log('❌ No examples found from Gemini');
-      }
+      await this.generateAndSaveExamples(cardSub, front, back, languageConfig);
     } catch (error) {
       console.error('💥 Error generating examples:', error);
     }
+  }
+
+  private async generateAndSaveExamples(
+    cardSub: string,
+    front: string[],
+    back: string[],
+    languageConfig: {
+      exampleLanguage: LanguageCode;
+      frontLanguage: LanguageCode;
+      backLanguage: LanguageCode;
+    }
+  ): Promise<string[]> {
+    if (!front.length || !back.length) return [];
+
+    const isProd = process.env.NODE_ENV === 'production';
+
+    const examples = isProd
+      ? await this.generateExamplesWithGemini(front, back, languageConfig)
+      : await this.getExamplesTemplates(front, languageConfig.exampleLanguage);
+
+    if (examples.length > 0) {
+      await this.cardExampleRepository.createMany({ cardSub, sentences: examples });
+    } else {
+      console.log('❌ No examples found from Gemini');
+    }
+
+    return examples;
   }
 
   private async getExamplesTemplates(words: string[], language: LanguageCode): Promise<string[]> {

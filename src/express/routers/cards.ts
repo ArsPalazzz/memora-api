@@ -19,6 +19,7 @@ import {
   getFoldersFlatCtr,
   moveDeskToFolderCtr,
   moveFolderToParentCtr,
+  regenerateCardExamplesCtr,
   restoreDeskCtr,
   updateCardCtr,
   updateDeskCtr,
@@ -47,6 +48,7 @@ cards.put('/desks/:sub', tokenValidator, updateDeskCtr);
 cards.put('/desks/:sub/folder', tokenValidator, moveDeskToFolderCtr);
 cards.put('/feed/settings', tokenValidator, updateFeedSettingsCtr);
 cards.get('/cards/:sub', tokenValidator, getCardCtr);
+cards.post('/cards/:sub/regenerate-examples', tokenValidator, regenerateCardExamplesCtr);
 cards.put('/cards/:sub', tokenValidator, updateCardCtr);
 cards.delete('/cards/:sub', tokenValidator, deleteCardCtr);
 cards.put('/desks/:sub/restore', tokenValidator, restoreDeskCtr);
