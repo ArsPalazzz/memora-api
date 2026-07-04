@@ -21,10 +21,13 @@ export const GET_NEXT_IN_SESSION_CARD = `
       WHEN sc.direction = 'front_to_back' THEN c.front_variants
       WHEN sc.direction = 'back_to_front' THEN c.back_variants
     END AS "text",
+    ds.front_language AS "frontLanguage",
+    ds.back_language AS "backLanguage",
     si.total_cards,
     si.answered_cards + 1 as current_position
   FROM games.session_card sc
   JOIN cards.card c ON sc.card_sub = c.sub
+  JOIN cards.desk_settings ds ON ds.desk_sub = c.desk_sub
   CROSS JOIN session_info si
   WHERE sc.session_id = $1
     AND sc.answered_at IS NULL

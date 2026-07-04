@@ -16,6 +16,11 @@ import {
   DEFAULT_REVIEW_STUDY_MODE,
   normalizeFeedStudyMode,
 } from './studyMode.const';
+import {
+  DEFAULT_BACK_LANGUAGE,
+  DEFAULT_FRONT_LANGUAGE,
+  LanguageCode,
+} from '../cards/card.const';
 
 export class GameService {
   constructor(
@@ -116,12 +121,18 @@ export class GameService {
     }
 
     const mode = await this.gameSessionRepository.getSessionMode(sessionId);
+    const speechLanguages = this.resolveCardSpeechLanguages(
+      card.direction as 'front_to_back' | 'back_to_front',
+      card.frontLanguage,
+      card.backLanguage
+    );
 
     return {
       mode: mode ?? DEFAULT_DESK_STUDY_MODE,
       card: {
         sub: card.sub,
         text: card.text,
+        ...speechLanguages,
       },
       progress: {
         current: card.current_position,
@@ -275,20 +286,29 @@ export class GameService {
     );
 
     return {
-      cards: cards.map((c) => ({
-        sub: c.sub,
-        text: c.front_variants,
-        backVariants: c.back_variants,
-        imageUuid: c.image_uuid,
-        deskTitle: c.desk_title,
-        deskSub: c.desk_sub,
-        globalStats: {
-          shown: c.global_shown_count,
-          liked: c.global_like_count,
-          answered: c.global_answer_count,
-        },
-        examples: c.examples,
-      })),
+      cards: cards.map((c) => {
+        const speechLanguages = this.resolveCardSpeechLanguages(
+          c.card_direction,
+          c.front_language,
+          c.back_language
+        );
+
+        return {
+          sub: c.sub,
+          text: c.front_variants,
+          backVariants: c.back_variants,
+          imageUuid: c.image_uuid,
+          deskTitle: c.desk_title,
+          deskSub: c.desk_sub,
+          globalStats: {
+            shown: c.global_shown_count,
+            liked: c.global_like_count,
+            answered: c.global_answer_count,
+          },
+          examples: c.examples,
+          ...speechLanguages,
+        };
+      }),
     };
   }
 
@@ -407,6 +427,21 @@ export class GameService {
     if (deskOrientation === 'reversed') return 'back_to_front';
 
     return Math.random() < 0.5 ? 'front_to_back' : 'back_to_front';
+  }
+
+  private resolveCardSpeechLanguages(
+    direction: 'front_to_back' | 'back_to_front',
+    frontLanguage?: string | null,
+    backLanguage?: string | null
+  ): { promptLanguage: LanguageCode; answerLanguage: LanguageCode } {
+    const front = (frontLanguage as LanguageCode) || DEFAULT_FRONT_LANGUAGE;
+    const back = (backLanguage as LanguageCode) || DEFAULT_BACK_LANGUAGE;
+
+    if (direction === 'front_to_back') {
+      return { promptLanguage: front, answerLanguage: back };
+    }
+
+    return { promptLanguage: back, answerLanguage: front };
   }
 }
 

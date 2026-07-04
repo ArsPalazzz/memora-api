@@ -33,6 +33,8 @@ export class CardDiscoveryRepository extends Table {
     c.copy_of,
     d.title as desk_title,
     d.creator_sub as desk_creator_sub,
+    ds.front_language,
+    ds.back_language,
     COALESCE(ts_rank(c.desk_sub_text_search,
       to_tsquery('english', $2)
     ), 0) as topic_relevance,
@@ -48,6 +50,7 @@ export class CardDiscoveryRepository extends Table {
     ) as shown_in_current_session
   FROM cards.card c
   JOIN cards.desk d ON d.sub = c.desk_sub
+  JOIN cards.desk_settings ds ON ds.desk_sub = c.desk_sub
   WHERE
     d.public = true
     AND c.copy_of IS NULL
@@ -117,9 +120,11 @@ SELECT
   sc.global_shown_count,
   sc.global_like_count,
   sc.global_answer_count,
-  sc.desk_sub,
-  sc.desk_title,
-  COALESCE(ce.examples, ARRAY[]::text[]) as examples,
+    sc.desk_sub,
+    sc.desk_title,
+    sc.front_language,
+    sc.back_language,
+    COALESCE(ce.examples, ARRAY[]::text[]) as examples,
   CASE 
     WHEN $6 = 'normal' THEN 'front_to_back'
     WHEN $6 = 'reversed' THEN 'back_to_front'
@@ -147,6 +152,8 @@ ORDER BY sc.final_score DESC
       global_answer_count: number;
       desk_sub: string;
       desk_title: string;
+      front_language: string;
+      back_language: string;
       examples: string[];
       card_direction: 'front_to_back' | 'back_to_front';
     }>(query);
