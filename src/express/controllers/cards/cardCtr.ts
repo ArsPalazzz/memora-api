@@ -15,7 +15,7 @@ import * as updateDeskBodyDtoSchema from './schemas/updateDeskBodyDto.json';
 import * as updateFeedSettingsBodyDtoSchema from './schemas/updateFeedSettingsBodyDto.json';
 import * as updateCardBodyDtoSchema from './schemas/updateCardBodyDto.json';
 import * as updateDeskParamsDtoSchema from './schemas/updateDeskParamsDto.json';
-import { CARD_ORIENTATION } from '../../../services/cards/card.const';
+import { CARD_ORIENTATION, LanguageCode } from '../../../services/cards/card.const';
 
 const validateCreateCardDto = ajv.compile(createCardDtoSchema);
 const validateCreateDeskDto = ajv.compile(createDeskDtoSchema);
@@ -215,12 +215,15 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const { sub, title, description, isPublic, folder_sub } = req.body as {
+    const { sub, title, description, isPublic, folder_sub, front_language, back_language, example_language } = req.body as {
       sub: string;
       title: string;
       description: string;
       isPublic: boolean;
       folder_sub: string | null;
+      front_language?: LanguageCode;
+      back_language?: LanguageCode;
+      example_language?: LanguageCode;
     };
 
     const creatorSub = res.locals.userSub as string;
@@ -232,6 +235,9 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       public: isPublic,
       creatorSub,
       folderSub: folder_sub,
+      frontLanguage: front_language,
+      backLanguage: back_language,
+      exampleLanguage: example_language,
     });
     res.json(deskInfo);
   } catch (e) {
@@ -448,6 +454,9 @@ export async function updateDeskSettingsCtr(req: Request, res: Response, next: N
     const body = {
       cards_per_session: req.body.cards_per_session as number,
       card_orientation: req.body.card_orientation as CARD_ORIENTATION,
+      front_language: req.body.front_language as LanguageCode,
+      back_language: req.body.back_language as LanguageCode,
+      example_language: req.body.example_language as LanguageCode,
     };
 
     if (!validateUpdateDeskSettingsParamsDto(params)) {

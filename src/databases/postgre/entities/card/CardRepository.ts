@@ -47,7 +47,13 @@ import {
   GetFolderContentsRes,
   GetRootFoldersRes,
 } from '../../../../services/cards/card.interfaces';
-import { CARD_ORIENTATION } from '../../../../services/cards/card.const';
+import {
+  CARD_ORIENTATION,
+  DEFAULT_BACK_LANGUAGE,
+  DEFAULT_EXAMPLE_LANGUAGE,
+  DEFAULT_FRONT_LANGUAGE,
+  LanguageCode,
+} from '../../../../services/cards/card.const';
 import { DatabaseError } from '../../../../exceptions';
 
 interface CreateCardParams {
@@ -437,6 +443,9 @@ export class CardRepository extends Table {
     description: string;
     public: boolean;
     creatorSub: string;
+    frontLanguage?: LanguageCode;
+    backLanguage?: LanguageCode;
+    exampleLanguage?: LanguageCode;
   }) {
     const tx = await this.startTransaction();
 
@@ -450,7 +459,12 @@ export class CardRepository extends Table {
       await tx.query({
         name: 'insertDeskSettings',
         text: INSERT_DESK_SETTINGS,
-        values: [params.sub],
+        values: [
+          params.sub,
+          params.frontLanguage ?? DEFAULT_FRONT_LANGUAGE,
+          params.backLanguage ?? DEFAULT_BACK_LANGUAGE,
+          params.exampleLanguage ?? DEFAULT_EXAMPLE_LANGUAGE,
+        ],
       });
 
       await tx.commit();
@@ -671,12 +685,25 @@ export class CardRepository extends Table {
 
   async updateDeskSettings(params: {
     desk_sub: string;
-    payload: { cards_per_session: number; card_orientation: CARD_ORIENTATION };
+    payload: {
+      cards_per_session: number;
+      card_orientation: CARD_ORIENTATION;
+      front_language: LanguageCode;
+      back_language: LanguageCode;
+      example_language: LanguageCode;
+    };
   }) {
     const query: Query = {
       name: 'updateDeskSettings',
       text: UPDATE_DESK_SETTINGS,
-      values: [params.desk_sub, params.payload.cards_per_session, params.payload.card_orientation],
+      values: [
+        params.desk_sub,
+        params.payload.cards_per_session,
+        params.payload.card_orientation,
+        params.payload.front_language,
+        params.payload.back_language,
+        params.payload.example_language,
+      ],
     };
 
     return this.updateItems(query);

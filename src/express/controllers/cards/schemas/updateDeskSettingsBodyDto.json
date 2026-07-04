@@ -1,6 +1,12 @@
 {
   "type": "object",
-  "required": ["cards_per_session", "card_orientation"],
+  "required": [
+    "cards_per_session",
+    "card_orientation",
+    "front_language",
+    "back_language",
+    "example_language"
+  ],
   "additionalProperties": false,
   "properties": {
     "cards_per_session": {
@@ -11,6 +17,18 @@
     "card_orientation": {
       "type": "string",
       "enum": ["normal", "reversed", "mixed"]
+    },
+    "front_language": {
+      "type": "string",
+      "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
+    },
+    "back_language": {
+      "type": "string",
+      "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
+    },
+    "example_language": {
+      "type": "string",
+      "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
     }
   }
 }

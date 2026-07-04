@@ -42,7 +42,10 @@ const startServer = async () => {
       .listen(port, '0.0.0.0', () =>
         logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`)
       )
-      .on('error', logger.error);
+      .on('error', (err) => {
+        logger.error('HTTP server error:', err);
+        process.exit(1);
+      });
 
     try {
       notificationScheduler = new NotificationScheduler(logger);

@@ -9,7 +9,7 @@ import userCardSrsRepository, {
 } from '../../databases/postgre/entities/card/UserCardSrsRepository';
 import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
-import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT } from './card.const';
+import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, LANGUAGE_NAMES, LanguageCode } from './card.const';
 import { Folder, FolderTree, GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 import { GoogleGenAI } from '@google/genai';
@@ -352,7 +352,14 @@ export class CardService {
     const sub = uuidV4();
     await this.cardRepository.createCard({ sub, ...payload });
 
-    this.generateExamples(sub, payload.front, payload.back);
+    const deskSettings = await this.deskSettingsRepository.getByDeskSub(payload.desk_sub);
+    const languageConfig = {
+      exampleLanguage: deskSettings?.example_language ?? DEFAULT_EXAMPLE_LANGUAGE,
+      frontLanguage: deskSettings?.front_language ?? DEFAULT_FRONT_LANGUAGE,
+      backLanguage: deskSettings?.back_language ?? DEFAULT_BACK_LANGUAGE,
+    };
+
+    this.generateExamples(sub, payload.front, payload.back, languageConfig);
 
     return sub;
   }
@@ -364,8 +371,11 @@ export class CardService {
     public: boolean;
     creatorSub: string;
     folderSub: string | null;
+    frontLanguage?: LanguageCode;
+    backLanguage?: LanguageCode;
+    exampleLanguage?: LanguageCode;
   }) {
-    const { folderSub, ...rest } = payload;
+    const { folderSub, frontLanguage, backLanguage, exampleLanguage, ...rest } = payload;
 
     if (folderSub) {
       const exist = await this.cardRepository.existFolderBySub(folderSub);
@@ -393,7 +403,12 @@ export class CardService {
       throw new Error(`Desk with title = ${payload.title} is already exist`);
     }
 
-    const created_at = await this.cardRepository.createDesk(rest);
+    const created_at = await this.cardRepository.createDesk({
+      ...rest,
+      frontLanguage,
+      backLanguage,
+      exampleLanguage,
+    });
 
     if (folderSub) {
       await this.cardRepository.addDeskToFolder(payload.sub, folderSub);
@@ -648,7 +663,13 @@ export class CardService {
 
   async updateDeskSettings(payload: {
     deskSub: string;
-    body: { cards_per_session: number; card_orientation: CARD_ORIENTATION };
+    body: {
+      cards_per_session: number;
+      card_orientation: CARD_ORIENTATION;
+      front_language: LanguageCode;
+      back_language: LanguageCode;
+      example_language: LanguageCode;
+    };
     creatorSub: string;
   }) {
     const { deskSub, body, creatorSub } = payload;
@@ -744,15 +765,24 @@ export class CardService {
     };
   }
 
-  private async generateExamples(cardSub: string, front: string[], back: string[]) {
+  private async generateExamples(
+    cardSub: string,
+    front: string[],
+    back: string[],
+    languageConfig: {
+      exampleLanguage: LanguageCode;
+      frontLanguage: LanguageCode;
+      backLanguage: LanguageCode;
+    }
+  ) {
     try {
       if (!front.length || !back.length) return;
 
       const isProd = process.env.NODE_ENV === 'production';
 
       const examples = isProd
-        ? await this.generateExamplesWithGemini(front)
-        : await this.getExamplesTemplates(front);
+        ? await this.generateExamplesWithGemini(front, back, languageConfig)
+        : await this.getExamplesTemplates(front, languageConfig.exampleLanguage);
 
       if (examples.length > 0) {
         await this.cardExampleRepository.createMany({ cardSub, sentences: examples });
@@ -764,42 +794,65 @@ export class CardService {
     }
   }
 
-  private async getExamplesTemplates(words: string[]): Promise<string[]> {
+  private async getExamplesTemplates(words: string[], language: LanguageCode): Promise<string[]> {
     await new Promise((resolve) => setTimeout(resolve, 100));
 
+    const langName = LANGUAGE_NAMES[language];
+
     return [
-      `First sentence with words: ${words.join(', ')}`,
-      `Second sentence with words: ${words.join(', ')}`,
-      `Third sentence with words: ${words.join(', ')}`,
-      `Fourth sentence with words: ${words.join(', ')}`,
-      `Fifth sentence with words: ${words.join(', ')}`,
+      `[${langName}] First sentence with words: ${words.join(', ')}`,
+      `[${langName}] Second sentence with words: ${words.join(', ')}`,
+      `[${langName}] Third sentence with words: ${words.join(', ')}`,
+      `[${langName}] Fourth sentence with words: ${words.join(', ')}`,
+      `[${langName}] Fifth sentence with words: ${words.join(', ')}`,
     ];
   }
 
-  private async generateExamplesWithGemini(words: string[]): Promise<string[]> {
-    try {
-      const wordsString = words.map((w) => `"${w}"`).join(', ');
+  private buildExamplesPrompt(
+    words: string[],
+    back: string[],
+    languageConfig: {
+      exampleLanguage: LanguageCode;
+      frontLanguage: LanguageCode;
+      backLanguage: LanguageCode;
+    }
+  ): string {
+    const wordsString = words.map((w) => `"${w}"`).join(', ');
+    const langName = LANGUAGE_NAMES[languageConfig.exampleLanguage];
+    const showTranslationContext =
+      languageConfig.frontLanguage !== languageConfig.backLanguage && back.length > 0;
+    const translationsString = back.map((w) => `"${w}"`).join(', ');
+    const translationContext = showTranslationContext
+      ? `\nTranslations (for context only, do NOT include in sentences): ${translationsString}\n`
+      : '';
 
-      const prompt = `Generate 5 diverse example sentences that use the following words: ${wordsString}.
-
+    return `Generate 5 diverse example sentences in ${langName} that use the following words: ${wordsString}.
+${translationContext}
         Requirements:
-        1. Each sentence should use ONE OR MORE of the given words
-        2. Different sentences should use DIFFERENT words from the list
-        3. Each word from the list should appear in at least one sentence
-        4. Sentences should be 8-25 words each
-        5. Use modern, natural English
-        6. Cover different contexts and grammatical structures
-        7. Ensure sentences are grammatically correct
-        8. Make sentences interesting and informative
+        1. Each sentence must be written in ${langName}
+        2. Each sentence should use ONE OR MORE of the given words
+        3. Different sentences should use DIFFERENT words from the list
+        4. Each word from the list should appear in at least one sentence
+        5. Sentences should be 8-25 words each
+        6. Use modern, natural ${langName}
+        7. Cover different contexts and grammatical structures
+        8. Ensure sentences are grammatically correct
+        9. Make sentences interesting and informative
 
-        Format: Return each sentence on a new line without numbers or bullets.
-        
-        Example for words ["house", "garden"]:
-        The old house had a beautiful garden full of roses.
-        We decided to paint the house and redesign the garden.
-        Living in a big house with a small garden can be challenging.
-        The house's garden attracts many birds and butterflies.
-        They bought a new house specifically for its large garden.`;
+        Format: Return each sentence on a new line without numbers or bullets.`;
+  }
+
+  private async generateExamplesWithGemini(
+    words: string[],
+    back: string[],
+    languageConfig: {
+      exampleLanguage: LanguageCode;
+      frontLanguage: LanguageCode;
+      backLanguage: LanguageCode;
+    }
+  ): Promise<string[]> {
+    try {
+      const prompt = this.buildExamplesPrompt(words, back, languageConfig);
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',

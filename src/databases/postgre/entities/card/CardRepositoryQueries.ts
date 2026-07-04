@@ -77,7 +77,14 @@ export const HAVE_ACCESS_TO_CARD = `
 `;
 
 export const UPDATE_DESK_SETTINGS = `
-  UPDATE cards.desk_settings SET cards_per_session = $2, card_orientation = $3 WHERE desk_sub = $1;
+  UPDATE cards.desk_settings
+  SET
+    cards_per_session = $2,
+    card_orientation = $3,
+    front_language = $4,
+    back_language = $5,
+    example_language = $6
+  WHERE desk_sub = $1;
 `;
 
 export const UPDATE_DESK = `
@@ -404,7 +411,8 @@ export const GET_ROOT_FOLDERS = `
 `;
 
 export const INSERT_DESK_SETTINGS = `
-  INSERT INTO cards.desk_settings (desk_sub) VALUES ($1);
+  INSERT INTO cards.desk_settings (desk_sub, front_language, back_language, example_language)
+  VALUES ($1, $2, $3, $4);
 `;
 
 export const GET_CARDS = `
@@ -549,7 +557,10 @@ export const GET_DESK_DETAILS = `
       d.description,
       d.created_at,
       ds.cards_per_session,
-      ds.card_orientation
+      ds.card_orientation,
+      ds.front_language,
+      ds.back_language,
+      ds.example_language
     FROM cards.desk d
     LEFT JOIN cards.desk_settings ds ON ds.desk_sub = d.sub
     WHERE d.sub = $1
@@ -594,7 +605,10 @@ export const GET_DESK_DETAILS = `
     dd.created_at,
     json_build_object(
       'cards_per_session', dd.cards_per_session,
-      'card_orientation', dd.card_orientation
+      'card_orientation', dd.card_orientation,
+      'front_language', dd.front_language,
+      'back_language', dd.back_language,
+      'example_language', dd.example_language
     ) AS settings,
     COALESCE(
       json_agg(
@@ -621,6 +635,7 @@ export const GET_DESK_DETAILS = `
   GROUP BY 
     dd.sub, dd.title, dd.description, dd.created_at, 
     dd.cards_per_session, dd.card_orientation,
+    dd.front_language, dd.back_language, dd.example_language,
     sc.total_cards, sc.new_cards, sc.due_today, sc.mastered_cards, sc.avg_ease_factor;
 `;
 

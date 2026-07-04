@@ -28,6 +28,18 @@
           "type": "null"
         }
       ]
+    },
+    "front_language": {
+      "type": "string",
+      "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
+    },
+    "back_language": {
+      "type": "string",
+      "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
+    },
+    "example_language": {
+      "type": "string",
+      "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
     }
   }
 }
