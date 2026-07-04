@@ -4,6 +4,7 @@ import {
   addCardToDeskCtr,
   answerInGameSessionCtr,
   revealInGameSessionCtr,
+  revealInFeedSessionCtr,
   getMatchBoardCtr,
   submitMatchCtr,
   finishGameSessionCtr,
@@ -25,6 +26,7 @@ games.post('/games/start-desk-session', tokenValidator, startDeskSessionCtr);
 games.post('/games/start-review-session', tokenValidator, startReviewSessionCtr);
 games.post('/games/answer', tokenValidator, answerInGameSessionCtr);
 games.post('/games/reveal', tokenValidator, revealInGameSessionCtr);
+games.post('/games/reveal-feed/:sub', tokenValidator, revealInFeedSessionCtr);
 games.get('/games/match-board/:sessionId', tokenValidator, getMatchBoardCtr);
 games.post('/games/match-submit', tokenValidator, submitMatchCtr);
 games.post('/games/grade', tokenValidator, gradeCardInGameSessionCtr);

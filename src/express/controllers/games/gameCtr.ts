@@ -210,6 +210,42 @@ export async function revealInGameSessionCtr(req: Request, res: Response, next: 
   }
 }
 
+export async function revealInFeedSessionCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    const userSub = res.locals.userSub as string;
+
+    if (!validateAnswerFeedParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect reveal in feed params', {
+          errors: validateAnswerFeedParamsDto.errors,
+        })
+      );
+    }
+
+    if (!validateAnswerInGameSessionBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect reveal in feed body', {
+          errors: validateAnswerInGameSessionBodyDto.errors,
+        })
+      );
+    }
+
+    const { sessionId } = req.body as { sessionId: string };
+
+    const result = await gameService.revealFeedCard({
+      sessionId,
+      cardSub: params.sub,
+      userSub,
+    });
+
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function getMatchBoardCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const userSub = res.locals.userSub as string;

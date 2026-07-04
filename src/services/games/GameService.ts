@@ -14,6 +14,7 @@ import {
   DEFAULT_DESK_STUDY_MODE,
   DEFAULT_FEED_STUDY_MODE,
   DEFAULT_REVIEW_STUDY_MODE,
+  normalizeFeedStudyMode,
 } from './studyMode.const';
 
 export class GameService {
@@ -168,6 +169,20 @@ export class GameService {
     return handler.handleAnswer(params);
   }
 
+  async revealFeedCard(params: { sessionId: string; userSub: string; cardSub: string }) {
+    const mode = await this.gameSessionRepository.getSessionMode(params.sessionId);
+    if (mode !== 'reveal') {
+      throw new BadRequestError('Session is not in reveal mode');
+    }
+
+    const handler = this.modeRegistry.getHandler('reveal');
+    if (!handler.handleFeedReveal) {
+      throw new BadRequestError('Feed reveal is not supported for this mode');
+    }
+
+    return handler.handleFeedReveal(params);
+  }
+
   async answerFeedCard(params: {
     sessionId: string;
     cardSub: string;
@@ -219,7 +234,7 @@ export class GameService {
   async startFeedSession(userSub: string): Promise<any> {
     const sessionId = uuidV4();
     const feedSettings = await this.cardService.getFeedSettingsByUserSub(userSub);
-    const studyMode = feedSettings?.study_mode ?? DEFAULT_FEED_STUDY_MODE;
+    const studyMode = normalizeFeedStudyMode(feedSettings?.study_mode ?? DEFAULT_FEED_STUDY_MODE);
 
     await this.gameSessionRepository.createFeed(sessionId, userSub, studyMode);
 
