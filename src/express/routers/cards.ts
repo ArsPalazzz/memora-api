@@ -16,6 +16,9 @@ import {
   getFolderContentsCtr,
   getFolderInfoCtr,
   getFoldersCtr,
+  getFoldersFlatCtr,
+  moveDeskToFolderCtr,
+  moveFolderToParentCtr,
   restoreDeskCtr,
   updateCardCtr,
   updateDeskCtr,
@@ -32,13 +35,16 @@ cards.get('/desks/archived', tokenValidator, getArchivedDesksCtr);
 cards.get('/desks/short', tokenValidator, getDeskSubsCtr);
 cards.post('/cards/create', tokenValidator, createCardCtr);
 cards.get('/folders', tokenValidator, getFoldersCtr);
+cards.get('/folders/flat', tokenValidator, getFoldersFlatCtr);
 cards.get('/folders/:sub', tokenValidator, getFolderInfoCtr);
 cards.get('/folders/:sub/contents', tokenValidator, getFolderContentsCtr);
 cards.post('/folders', tokenValidator, createFolderCtr);
+cards.put('/folders/:sub/parent', tokenValidator, moveFolderToParentCtr);
 cards.post('/desks/create', tokenValidator, createDeskCtr);
 cards.get('/desks/:sub', tokenValidator, getDeskInfoCtr);
 cards.get('/desks/:sub/cards', tokenValidator, getDeskCardsCtr);
 cards.put('/desks/:sub', tokenValidator, updateDeskCtr);
+cards.put('/desks/:sub/folder', tokenValidator, moveDeskToFolderCtr);
 cards.put('/feed/settings', tokenValidator, updateFeedSettingsCtr);
 cards.get('/cards/:sub', tokenValidator, getCardCtr);
 cards.put('/cards/:sub', tokenValidator, updateCardCtr);

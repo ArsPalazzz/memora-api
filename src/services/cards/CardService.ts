@@ -484,6 +484,158 @@ export class CardService {
     return await this.cardRepository.getFolderInfo(folderSub);
   }
 
+  async getAllFoldersFlat(creatorSub: string) {
+    return await this.cardRepository.getAllFoldersFlat(creatorSub);
+  }
+
+  async moveDeskToFolder(payload: {
+    deskSub: string;
+    folderSub: string | null;
+    creatorSub: string;
+  }) {
+    const { deskSub, folderSub, creatorSub } = payload;
+
+    const exist = await this.cardRepository.existDesk({ sub: deskSub });
+    if (!exist) {
+      throw new NotFoundError(`CardService: desk with sub = ${deskSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToDesk({
+      user_sub: creatorSub,
+      desk_sub: deskSub,
+    });
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `CardService: user with sub = ${creatorSub} cannot move desk with sub = ${deskSub}`
+      );
+    }
+
+    const currentFolderSub = await this.cardRepository.getDeskFolderSub(deskSub);
+    if (currentFolderSub === folderSub) {
+      return;
+    }
+
+    const title = await this.cardRepository.getDeskTitle(deskSub);
+    if (!title) {
+      throw new NotFoundError(`CardService: desk with sub = ${deskSub} not found`);
+    }
+
+    if (folderSub) {
+      const folderExists = await this.cardRepository.existFolderBySub(folderSub);
+      if (!folderExists) {
+        throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+      }
+
+      const haveFolderAccess = await this.cardRepository.haveAccessToFolder(folderSub, creatorSub);
+      if (!haveFolderAccess) {
+        throw new ForbiddenError(
+          `User with sub = ${creatorSub} don't have access to folder with sub = ${folderSub}`
+        );
+      }
+
+      const titleExists = await this.cardRepository.existDeskWithTitleAndFolder({
+        title,
+        folderSub,
+        creatorSub,
+      });
+      if (titleExists) {
+        throw new BadRequestError(`Desk with title = ${title} already exists in this folder`);
+      }
+    } else {
+      const titleExists = await this.cardRepository.existDeskWithTitle({
+        title,
+        creatorSub,
+      });
+      if (titleExists) {
+        throw new BadRequestError(`Desk with title = ${title} already exists at root level`);
+      }
+    }
+
+    await this.cardRepository.removeDeskFromFolders(deskSub);
+
+    if (folderSub) {
+      await this.cardRepository.addDeskToFolder(deskSub, folderSub);
+    }
+  }
+
+  async moveFolderToParent(payload: {
+    folderSub: string;
+    parentFolderSub: string | null;
+    creatorSub: string;
+  }) {
+    const { folderSub, parentFolderSub, creatorSub } = payload;
+
+    const folderExists = await this.cardRepository.existFolderBySub(folderSub);
+    if (!folderExists) {
+      throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToFolder(folderSub, creatorSub);
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `User with sub = ${creatorSub} don't have access to folder with sub = ${folderSub}`
+      );
+    }
+
+    const folder = await this.cardRepository.getFolderParent(folderSub);
+    if (!folder) {
+      throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+    }
+
+    if (folder.parentFolderSub === parentFolderSub) {
+      return;
+    }
+
+    if (parentFolderSub) {
+      const isInvalidTarget = await this.cardRepository.isFolderDescendantOrSelf(
+        folderSub,
+        parentFolderSub,
+        creatorSub
+      );
+      if (isInvalidTarget) {
+        throw new BadRequestError('Cannot move a folder into itself or its subfolder');
+      }
+
+      const parentExists = await this.cardRepository.existFolderBySub(parentFolderSub);
+      if (!parentExists) {
+        throw new NotFoundError(`Folder with sub = ${parentFolderSub} not found`);
+      }
+
+      const haveParentAccess = await this.cardRepository.haveAccessToFolder(
+        parentFolderSub,
+        creatorSub
+      );
+      if (!haveParentAccess) {
+        throw new ForbiddenError(
+          `User with sub = ${creatorSub} don't have access to folder with sub = ${parentFolderSub}`
+        );
+      }
+
+      const titleExists = await this.cardRepository.existFolderWithTitleAndParent({
+        title: folder.title,
+        folderSub: parentFolderSub,
+        creatorSub,
+      });
+      if (titleExists) {
+        throw new BadRequestError(
+          `Folder with title = ${folder.title} already exists in target folder`
+        );
+      }
+    } else {
+      const titleExists = await this.cardRepository.existFolderWithTitle({
+        title: folder.title,
+        creatorSub,
+      });
+      if (titleExists) {
+        throw new BadRequestError(
+          `Folder with title = ${folder.title} already exists at root level`
+        );
+      }
+    }
+
+    await this.cardRepository.updateFolderParent(folderSub, parentFolderSub);
+  }
+
   async updateDesk(payload: {
     deskSub: string;
     body: { title: string; description: string };

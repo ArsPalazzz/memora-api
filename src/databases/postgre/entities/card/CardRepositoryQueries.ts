@@ -659,3 +659,50 @@ GROUP BY
     c.back_variants
 ORDER BY c.created_at DESC;
 `;
+
+export const GET_FOLDERS_FLAT = `
+  SELECT
+    f.sub,
+    f.title,
+    f.parent_folder_sub AS "parentFolderSub"
+  FROM cards.folder f
+  WHERE f.creator_sub = $1
+  ORDER BY f.title ASC;
+`;
+
+export const GET_DESK_FOLDER = `
+  SELECT folder_sub AS "folderSub"
+  FROM cards.folder_desk
+  WHERE desk_sub = $1
+  LIMIT 1;
+`;
+
+export const GET_FOLDER_PARENT = `
+  SELECT parent_folder_sub AS "parentFolderSub", title
+  FROM cards.folder
+  WHERE sub = $1;
+`;
+
+export const GET_DESK_TITLE = `
+  SELECT title FROM cards.desk WHERE sub = $1;
+`;
+
+export const REMOVE_DESK_FROM_FOLDERS = `
+  DELETE FROM cards.folder_desk WHERE desk_sub = $1;
+`;
+
+export const UPDATE_FOLDER_PARENT = `
+  UPDATE cards.folder SET parent_folder_sub = $2 WHERE sub = $1;
+`;
+
+export const IS_FOLDER_DESCENDANT_OR_SELF = `
+  WITH RECURSIVE descendants AS (
+    SELECT sub FROM cards.folder WHERE sub = $1 AND creator_sub = $2
+    UNION ALL
+    SELECT f.sub
+    FROM cards.folder f
+    INNER JOIN descendants d ON f.parent_folder_sub = d.sub
+    WHERE f.creator_sub = $2
+  )
+  SELECT EXISTS (SELECT 1 FROM descendants WHERE sub = $3);
+`;

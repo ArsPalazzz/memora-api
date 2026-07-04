@@ -11,6 +11,8 @@ import * as getDeskInfoDtoSchema from './schemas/getDeskInfoDto.json';
 import * as updateDeskSettingsBodyDtoSchema from './schemas/updateDeskSettingsBodyDto.json';
 import * as updateReviewSettingsBodyDtoSchema from './schemas/updateReviewSettingsBodyDto.json';
 import * as updateDeskSettingsParamsDtoSchema from './schemas/updateDeskSettingsParamsDto.json';
+import * as moveDeskToFolderBodyDtoSchema from './schemas/moveDeskToFolderBodyDto.json';
+import * as moveFolderParentBodyDtoSchema from './schemas/moveFolderParentBodyDto.json';
 import * as updateDeskBodyDtoSchema from './schemas/updateDeskBodyDto.json';
 import * as updateFeedSettingsBodyDtoSchema from './schemas/updateFeedSettingsBodyDto.json';
 import * as updateCardBodyDtoSchema from './schemas/updateCardBodyDto.json';
@@ -24,6 +26,8 @@ const validateGetDeskInfoDto = ajv.compile(getDeskInfoDtoSchema);
 const validateUpdateDeskSettingsBodyDto = ajv.compile(updateDeskSettingsBodyDtoSchema);
 const validateUpdateReviewSettingsBodyDto = ajv.compile(updateReviewSettingsBodyDtoSchema);
 const validateUpdateDeskSettingsParamsDto = ajv.compile(updateDeskSettingsParamsDtoSchema);
+const validateMoveDeskToFolderBodyDto = ajv.compile(moveDeskToFolderBodyDtoSchema);
+const validateMoveFolderParentBodyDto = ajv.compile(moveFolderParentBodyDtoSchema);
 const validateUpdateDeskBodyDto = ajv.compile(updateDeskBodyDtoSchema);
 const validateUpdateFeedSettingsBodyDto = ajv.compile(updateFeedSettingsBodyDtoSchema);
 const validateUpdateCardBodyDto = ajv.compile(updateCardBodyDtoSchema);
@@ -200,6 +204,88 @@ export async function getFoldersCtr(req: Request, res: Response, next: NextFunct
     const folders = await cardService.getRootFolders(creatorSub);
 
     res.status(200).json(folders);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getFoldersFlatCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const creatorSub = res.locals.userSub as string;
+
+    const folders = await cardService.getAllFoldersFlat(creatorSub);
+
+    res.status(200).json(folders);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function moveDeskToFolderCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect desk params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    if (!validateMoveDeskToFolderBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect move desk body', {
+          errors: validateMoveDeskToFolderBodyDto.errors,
+        })
+      );
+    }
+
+    const { folder_sub } = req.body as { folder_sub: string | null };
+    const creatorSub = res.locals.userSub as string;
+
+    await cardService.moveDeskToFolder({
+      deskSub: params.sub,
+      folderSub: folder_sub,
+      creatorSub,
+    });
+
+    res.json({ moved: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function moveFolderToParentCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect folder params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    if (!validateMoveFolderParentBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect move folder body', {
+          errors: validateMoveFolderParentBodyDto.errors,
+        })
+      );
+    }
+
+    const { parent_folder_sub } = req.body as { parent_folder_sub: string | null };
+    const creatorSub = res.locals.userSub as string;
+
+    await cardService.moveFolderToParent({
+      folderSub: params.sub,
+      parentFolderSub: parent_folder_sub,
+      creatorSub,
+    });
+
+    res.json({ moved: true });
   } catch (e) {
     next(e);
   }

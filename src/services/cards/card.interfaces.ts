@@ -127,3 +127,9 @@ export interface GetRootFoldersRes {
   deskCount: number;
   folderCount: number;
 }
+
+export type FolderFlatItem = {
+  sub: string;
+  title: string;
+  parentFolderSub: string | null;
+};

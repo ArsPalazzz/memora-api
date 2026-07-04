@@ -1,0 +1,17 @@
+{
+  "type": "object",
+  "required": ["parent_folder_sub"],
+  "additionalProperties": false,
+  "properties": {
+    "parent_folder_sub": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      ]
+    }
+  }
+}

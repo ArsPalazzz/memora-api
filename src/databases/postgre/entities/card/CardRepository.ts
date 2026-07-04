@@ -22,7 +22,11 @@ import {
   GET_DESKS_BY_CREATOR_SUB,
   GET_FOLDER_CONTENTS,
   GET_FOLDER_INFO,
+  GET_DESK_FOLDER,
+  GET_DESK_TITLE,
+  GET_FOLDER_PARENT,
   GET_FOLDER_TREE,
+  GET_FOLDERS_FLAT,
   GET_ROOT_FOLDERS,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
@@ -31,16 +35,20 @@ import {
   INSERT_DESK,
   INSERT_DESK_SETTINGS,
   INSERT_FOLDER,
+  IS_FOLDER_DESCENDANT_OR_SELF,
+  REMOVE_DESK_FROM_FOLDERS,
   RESTORE_DESK,
   UPDATE_CARD,
   UPDATE_DESK,
   UPDATE_DESK_SETTINGS,
+  UPDATE_FOLDER_PARENT,
   UPDATE_FEED_CARD_ORIENTATION,
   UPDATE_LAST_TIME_PLAYED_DESK,
 } from './CardRepositoryQueries';
 import {
   Folder,
   FolderContentItem,
+  FolderFlatItem,
   FolderInfo,
   GetDeskCardsResult,
   GetDeskDetailsResult,
@@ -577,6 +585,82 @@ export class CardRepository extends Table {
       deskCount: Number(result.deskCount),
       childCount: Number(result.childCount),
     };
+  }
+
+  async getAllFoldersFlat(creatorSub: string): Promise<FolderFlatItem[]> {
+    const query: Query = {
+      name: 'getAllFoldersFlat',
+      text: GET_FOLDERS_FLAT,
+      values: [creatorSub],
+    };
+
+    return this.getItems(query);
+  }
+
+  async getDeskFolderSub(deskSub: string): Promise<string | null> {
+    const query: Query = {
+      name: 'getDeskFolderSub',
+      text: GET_DESK_FOLDER,
+      values: [deskSub],
+    };
+
+    const result = await this.getItem<{ folderSub: string }>(query);
+    return result?.folderSub ?? null;
+  }
+
+  async getFolderParent(folderSub: string): Promise<{ parentFolderSub: string | null; title: string } | null> {
+    const query: Query = {
+      name: 'getFolderParent',
+      text: GET_FOLDER_PARENT,
+      values: [folderSub],
+    };
+
+    return this.getItem(query);
+  }
+
+  async getDeskTitle(deskSub: string): Promise<string | null> {
+    const query: Query = {
+      name: 'getDeskTitle',
+      text: GET_DESK_TITLE,
+      values: [deskSub],
+    };
+
+    const result = await this.getItem<{ title: string }>(query);
+    return result?.title ?? null;
+  }
+
+  async removeDeskFromFolders(deskSub: string) {
+    const query: Query = {
+      name: 'removeDeskFromFolders',
+      text: REMOVE_DESK_FROM_FOLDERS,
+      values: [deskSub],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async updateFolderParent(folderSub: string, parentFolderSub: string | null) {
+    const query: Query = {
+      name: 'updateFolderParent',
+      text: UPDATE_FOLDER_PARENT,
+      values: [folderSub, parentFolderSub],
+    };
+
+    return this.updateItems(query);
+  }
+
+  async isFolderDescendantOrSelf(
+    folderSub: string,
+    targetSub: string,
+    creatorSub: string
+  ): Promise<boolean> {
+    const query: Query = {
+      name: 'isFolderDescendantOrSelf',
+      text: IS_FOLDER_DESCENDANT_OR_SELF,
+      values: [folderSub, creatorSub, targetSub],
+    };
+
+    return this.exists(query);
   }
 
   async getRootFolders(creatorSub: string): Promise<GetRootFoldersRes[]> {
