@@ -18,6 +18,7 @@ import * as updateFeedSettingsBodyDtoSchema from './schemas/updateFeedSettingsBo
 import * as updateCardBodyDtoSchema from './schemas/updateCardBodyDto.json';
 import * as updateDeskParamsDtoSchema from './schemas/updateDeskParamsDto.json';
 import { CARD_ORIENTATION, LanguageCode } from '../../../services/cards/card.const';
+import { StudyMode } from '../../../services/games/studyMode.const';
 
 const validateCreateCardDto = ajv.compile(createCardDtoSchema);
 const validateCreateDeskDto = ajv.compile(createDeskDtoSchema);
@@ -374,6 +375,7 @@ export async function updateFeedSettingsCtr(req: Request, res: Response, next: N
   try {
     const body = {
       card_orientation: req.body.card_orientation as CARD_ORIENTATION,
+      study_mode: req.body.study_mode as StudyMode,
     };
 
     if (!validateUpdateFeedSettingsBodyDto(body)) {
@@ -389,7 +391,8 @@ export async function updateFeedSettingsCtr(req: Request, res: Response, next: N
     await userService.existProfile({ sub: creatorSub });
 
     await cardService.updateFeedSettings({
-      cardOrientation: body.card_orientation as CARD_ORIENTATION,
+      cardOrientation: body.card_orientation,
+      studyMode: body.study_mode,
       creatorSub,
     });
 
@@ -543,6 +546,7 @@ export async function updateDeskSettingsCtr(req: Request, res: Response, next: N
       front_language: req.body.front_language as LanguageCode,
       back_language: req.body.back_language as LanguageCode,
       example_language: req.body.example_language as LanguageCode,
+      study_mode: req.body.study_mode as StudyMode,
     };
 
     if (!validateUpdateDeskSettingsParamsDto(params)) {
@@ -580,6 +584,7 @@ export async function updateReviewSettingsCtr(req: Request, res: Response, next:
   try {
     const body = {
       cards_per_session: req.body.cards_per_session as number,
+      study_mode: req.body.study_mode as StudyMode,
     };
 
     if (!validateUpdateReviewSettingsBodyDto(body)) {

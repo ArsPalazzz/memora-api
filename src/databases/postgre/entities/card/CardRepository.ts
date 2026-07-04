@@ -46,7 +46,7 @@ import {
   UPDATE_DESK,
   UPDATE_DESK_SETTINGS,
   UPDATE_FOLDER_PARENT,
-  UPDATE_FEED_CARD_ORIENTATION,
+  UPDATE_FEED_SETTINGS,
   UPDATE_LAST_TIME_PLAYED_DESK,
 } from './CardRepositoryQueries';
 import {
@@ -66,6 +66,7 @@ import {
   DEFAULT_FRONT_LANGUAGE,
   LanguageCode,
 } from '../../../../services/cards/card.const';
+import { StudyMode } from '../../../../services/games/studyMode.const';
 import { DatabaseError } from '../../../../exceptions';
 
 interface CreateCardParams {
@@ -711,11 +712,15 @@ export class CardRepository extends Table {
     return this.updateItems(query);
   }
 
-  async updateFeedCardOrientation(params: { userSub: string; cardOrientation: CARD_ORIENTATION }) {
+  async updateFeedSettings(params: {
+    userSub: string;
+    cardOrientation: CARD_ORIENTATION;
+    studyMode: StudyMode;
+  }) {
     const query: Query = {
-      name: 'updateFeedCardOrientation',
-      text: UPDATE_FEED_CARD_ORIENTATION,
-      values: [params.cardOrientation, params.userSub],
+      name: 'updateFeedSettings',
+      text: UPDATE_FEED_SETTINGS,
+      values: [params.cardOrientation, params.studyMode, params.userSub],
     };
 
     return this.updateItems(query);
@@ -789,6 +794,7 @@ export class CardRepository extends Table {
       front_language: LanguageCode;
       back_language: LanguageCode;
       example_language: LanguageCode;
+      study_mode: StudyMode;
     };
   }) {
     const query: Query = {
@@ -801,6 +807,7 @@ export class CardRepository extends Table {
         params.payload.front_language,
         params.payload.back_language,
         params.payload.example_language,
+        params.payload.study_mode,
       ],
     };
 

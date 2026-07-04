@@ -11,6 +11,10 @@
       "type": "integer",
       "minimum": 0,
       "maximum": 4
+    },
+    "cardSub": {
+      "format": "uuid",
+      "type": "string"
     }
   }
 }

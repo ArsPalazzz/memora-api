@@ -4,6 +4,7 @@ import {
   CREATE_GAME_SESSION,
   CREATE_REVIEW_SESSION,
   CREATE_FEED_SESSION,
+  GET_SESSION_MODE,
   EXIST_BY_SESSION_ID,
   FINISH_SESSION,
   GET_NEXT_UNANSWERED_CARD,
@@ -12,16 +13,24 @@ import {
   HAVE_ACCESS_TO_SESSION,
   IS_SESSION_ACTIVE,
   SAVE_ANSWER,
+  SAVE_REVEAL,
   GET_CARD_IN_SESSION_BY_SUB,
 } from './GameSessionRepositoryQueries';
 import { GetWeeklyDeskStats } from '../../../../services/games/game.interfaces';
+import { StudyMode } from '../../../../services/games/studyMode.const';
 
 export class GameSessionRepository extends Table {
-  async create(sessionId: string, userSub: string, deskSub: string, tx: PgTransaction) {
+  async create(
+    sessionId: string,
+    userSub: string,
+    deskSub: string,
+    mode: StudyMode,
+    tx: PgTransaction
+  ) {
     tx.query({
       name: 'createGameSession',
       text: CREATE_GAME_SESSION,
-      values: [sessionId, userSub, deskSub],
+      values: [sessionId, userSub, mode, deskSub],
     });
   }
 
@@ -57,11 +66,17 @@ export class GameSessionRepository extends Table {
     await this.insertItem(query);
   }
 
-  async createReview(sessionId: string, userSub: string, batchId: string, tx: PgTransaction) {
+  async createReview(
+    sessionId: string,
+    userSub: string,
+    batchId: string,
+    mode: StudyMode,
+    tx: PgTransaction
+  ) {
     tx.query({
       name: 'createReviewSession',
       text: CREATE_REVIEW_SESSION,
-      values: [sessionId, userSub, batchId],
+      values: [sessionId, userSub, mode, batchId],
     });
   }
 
@@ -75,14 +90,25 @@ export class GameSessionRepository extends Table {
     return this.exists(query);
   }
 
-  async createFeed(sessionId: string, userSub: string) {
+  async createFeed(sessionId: string, userSub: string, mode: StudyMode) {
     const query: Query = {
       name: 'createFeedSession',
       text: CREATE_FEED_SESSION,
-      values: [sessionId, userSub],
+      values: [sessionId, userSub, mode],
     };
 
     return this.insertItem(query);
+  }
+
+  async getSessionMode(sessionId: string): Promise<StudyMode | null> {
+    const query: Query = {
+      name: 'getSessionMode',
+      text: GET_SESSION_MODE,
+      values: [sessionId],
+    };
+
+    const result = await this.getItem<{ mode: StudyMode }>(query);
+    return result?.mode ?? null;
   }
 
   async existBySessionId(sessionId: string) {
@@ -140,7 +166,18 @@ export class GameSessionRepository extends Table {
       direction: string;
       frontVariants: string[];
       backVariants: string[];
+      examples: string[];
     }>(query);
+  }
+
+  async saveReveal(params: { sessionCardId: number }) {
+    const query: Query = {
+      name: 'saveReveal',
+      text: SAVE_REVEAL,
+      values: [params.sessionCardId],
+    };
+
+    await this.updateItems(query);
   }
 
   async getCardInSessionBySub(params: { sessionId: string; userSub: string; cardSub: string }) {
@@ -156,6 +193,7 @@ export class GameSessionRepository extends Table {
       direction: string;
       frontVariants: string[];
       backVariants: string[];
+      examples: string[];
     }>(query);
   }
 

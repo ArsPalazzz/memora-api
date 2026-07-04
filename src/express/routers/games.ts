@@ -3,6 +3,9 @@ import { tokenValidator } from '../middlewares';
 import {
   addCardToDeskCtr,
   answerInGameSessionCtr,
+  revealInGameSessionCtr,
+  getMatchBoardCtr,
+  submitMatchCtr,
   finishGameSessionCtr,
   getNextCardCtr,
   gradeCardInGameSessionCtr,
@@ -21,6 +24,9 @@ const games = Router();
 games.post('/games/start-desk-session', tokenValidator, startDeskSessionCtr);
 games.post('/games/start-review-session', tokenValidator, startReviewSessionCtr);
 games.post('/games/answer', tokenValidator, answerInGameSessionCtr);
+games.post('/games/reveal', tokenValidator, revealInGameSessionCtr);
+games.get('/games/match-board/:sessionId', tokenValidator, getMatchBoardCtr);
+games.post('/games/match-submit', tokenValidator, submitMatchCtr);
 games.post('/games/grade', tokenValidator, gradeCardInGameSessionCtr);
 games.get('/games/next-card', tokenValidator, getNextCardCtr);
 games.post('/games/finish', tokenValidator, finishGameSessionCtr);

@@ -7,6 +7,9 @@ import * as answerInGameSessionBodyDtoSchema from './schemas/answerInGameSession
 import * as answerFeedParamsDtoSchema from './schemas/answerFeedParamsDto.json';
 import * as gradeCardInGameSessionBodyDtoSchema from './schemas/gradeCardInGameSessionBodyDto.json';
 import * as getNextCardBodyDtoSchema from './schemas/getNextCardBodyDto.json';
+import * as revealInGameSessionBodyDtoSchema from './schemas/revealInGameSessionBodyDto.json';
+import * as matchSessionParamsDtoSchema from './schemas/matchSessionParamsDto.json';
+import * as matchSubmitBodyDtoSchema from './schemas/matchSubmitBodyDto.json';
 import { ajv } from '../../../utils';
 import gameService from '../../../services/games/GameService';
 
@@ -16,6 +19,9 @@ const validateAnswerInGameSessionBodyDto = ajv.compile(answerInGameSessionBodyDt
 const validateAnswerFeedParamsDto = ajv.compile(answerFeedParamsDtoSchema);
 const validateGradeCardInGameSessionBodyDto = ajv.compile(gradeCardInGameSessionBodyDtoSchema);
 const validateGetNextCardBodyDto = ajv.compile(getNextCardBodyDtoSchema);
+const validateRevealInGameSessionBodyDto = ajv.compile(revealInGameSessionBodyDtoSchema);
+const validateMatchSessionParamsDto = ajv.compile(matchSessionParamsDtoSchema);
+const validateMatchSubmitBodyDto = ajv.compile(matchSubmitBodyDtoSchema);
 
 export async function startDeskSessionCtr(req: Request, res: Response, next: NextFunction) {
   try {
@@ -136,9 +142,13 @@ export async function gradeCardInGameSessionCtr(req: Request, res: Response, nex
       );
     }
 
-    const { sessionId, quality } = req.body as { sessionId: string; quality: number };
+    const { sessionId, quality, cardSub } = req.body as {
+      sessionId: string;
+      quality: number;
+      cardSub?: string;
+    };
 
-    await gameService.gradeCard({ sessionId, userSub, quality });
+    await gameService.gradeCard({ sessionId, userSub, quality, cardSub });
 
     res.sendStatus(204);
   } catch (e) {
@@ -173,6 +183,77 @@ export async function gradeCardInFeedCtr(req: Request, res: Response, next: Next
     await gameService.gradeCardInFeed({ sessionId, userSub, quality, cardSub: params.sub });
 
     res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function revealInGameSessionCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    if (!validateRevealInGameSessionBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect reveal in game session body', {
+          errors: validateRevealInGameSessionBodyDto.errors,
+        })
+      );
+    }
+
+    const { sessionId } = req.body as { sessionId: string };
+
+    const result = await gameService.revealCard({ sessionId, userSub });
+
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getMatchBoardCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+    const params = { sessionId: req.params.sessionId };
+
+    if (!validateMatchSessionParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect match board params', {
+          errors: validateMatchSessionParamsDto.errors,
+        })
+      );
+    }
+
+    const board = await gameService.getMatchBoard({
+      sessionId: params.sessionId,
+      userSub,
+    });
+
+    res.json(board);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function submitMatchCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    if (!validateMatchSubmitBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect match submit body', {
+          errors: validateMatchSubmitBodyDto.errors,
+        })
+      );
+    }
+
+    const { sessionId, pairs } = req.body as {
+      sessionId: string;
+      pairs: { leftCardSub: string; rightSlotId: number }[];
+    };
+
+    const result = await gameService.submitMatch({ sessionId, userSub, pairs });
+
+    res.json(result);
   } catch (e) {
     next(e);
   }
@@ -226,8 +307,8 @@ export async function startFeedSessionCtr(req: Request, res: Response, next: Nex
   try {
     const userSub = res.locals.userSub as string;
 
-    const { sessionId } = await gameService.startFeedSession(userSub);
-    res.json({ sessionId });
+    const { sessionId, mode } = await gameService.startFeedSession(userSub);
+    res.json({ sessionId, mode });
   } catch (e) {
     next(e);
   }

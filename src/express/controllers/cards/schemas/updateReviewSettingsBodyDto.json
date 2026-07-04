@@ -1,12 +1,16 @@
 {
   "type": "object",
-  "required": ["cards_per_session"],
+  "required": ["cards_per_session", "study_mode"],
   "additionalProperties": false,
   "properties": {
     "cards_per_session": {
       "type": "integer",
       "minimum": 1,
       "maximum": 100
+    },
+    "study_mode": {
+      "type": "string",
+      "enum": ["write", "reveal", "match", "swipe"]
     }
   }
 }

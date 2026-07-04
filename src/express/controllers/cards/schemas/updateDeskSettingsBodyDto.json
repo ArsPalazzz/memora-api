@@ -5,7 +5,8 @@
     "card_orientation",
     "front_language",
     "back_language",
-    "example_language"
+    "example_language",
+    "study_mode"
   ],
   "additionalProperties": false,
   "properties": {
@@ -29,6 +30,10 @@
     "example_language": {
       "type": "string",
       "enum": ["en", "ru", "de", "fr", "es", "it", "pt", "ja", "zh", "ko", "uk", "pl"]
+    },
+    "study_mode": {
+      "type": "string",
+      "enum": ["write", "reveal", "match", "swipe"]
     }
   }
 }

@@ -1,6 +1,7 @@
 import Table from '../Table';
 import { Query } from '../../index';
 import { CARD_ORIENTATION, LanguageCode } from '../../../../services/cards/card.const';
+import { StudyMode } from '../../../../services/games/studyMode.const';
 import { GET_DESK_SETTINGS_BY_SUB } from './DeskSettingsRepositoryQueries';
 
 export class DeskSettingsRepository extends Table {
@@ -17,6 +18,7 @@ export class DeskSettingsRepository extends Table {
       front_language: LanguageCode;
       back_language: LanguageCode;
       example_language: LanguageCode;
+      study_mode: StudyMode;
     }>(query);
   }
 }

@@ -10,6 +10,7 @@ import userCardSrsRepository, {
 import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
 import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, LANGUAGE_NAMES, LanguageCode } from './card.const';
+import { StudyMode } from '../games/studyMode.const';
 import { Folder, FolderTree, GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 import { GoogleGenAI } from '@google/genai';
@@ -653,8 +654,12 @@ export class CardService {
     });
   }
 
-  async updateFeedSettings(payload: { cardOrientation: CARD_ORIENTATION; creatorSub: string }) {
-    const { cardOrientation, creatorSub } = payload;
+  async updateFeedSettings(payload: {
+    cardOrientation: CARD_ORIENTATION;
+    studyMode: StudyMode;
+    creatorSub: string;
+  }) {
+    const { cardOrientation, studyMode, creatorSub } = payload;
     const exist = await this.feedSettingsRepository.existByUserSub(creatorSub);
     if (!exist) {
       throw new NotFoundError(
@@ -662,9 +667,10 @@ export class CardService {
       );
     }
 
-    await this.cardRepository.updateFeedCardOrientation({
+    await this.cardRepository.updateFeedSettings({
       userSub: creatorSub,
       cardOrientation,
+      studyMode,
     });
   }
 
@@ -811,6 +817,7 @@ export class CardService {
       front_language: LanguageCode;
       back_language: LanguageCode;
       example_language: LanguageCode;
+      study_mode: StudyMode;
     };
     creatorSub: string;
   }) {
@@ -836,7 +843,10 @@ export class CardService {
     });
   }
 
-  async updateReviewSettings(payload: { body: { cards_per_session: number }; creatorSub: string }) {
+  async updateReviewSettings(payload: {
+    body: { cards_per_session: number; study_mode: StudyMode };
+    creatorSub: string;
+  }) {
     const { body, creatorSub } = payload;
     const exist = await this.reviewSettingsRepository.existByUserSub(creatorSub);
     if (!exist) {
@@ -848,6 +858,7 @@ export class CardService {
     await this.reviewSettingsRepository.updateReviewSettings({
       userSub: creatorSub,
       cards_per_session: body.cards_per_session,
+      study_mode: body.study_mode,
     });
   }
 

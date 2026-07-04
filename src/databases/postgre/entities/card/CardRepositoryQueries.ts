@@ -86,7 +86,8 @@ export const UPDATE_DESK_SETTINGS = `
     card_orientation = $3,
     front_language = $4,
     back_language = $5,
-    example_language = $6
+    example_language = $6,
+    study_mode = $7
   WHERE desk_sub = $1;
 `;
 
@@ -94,8 +95,10 @@ export const UPDATE_DESK = `
   UPDATE cards.desk SET title = $2, description = $3 WHERE sub = $1;
 `;
 
-export const UPDATE_FEED_CARD_ORIENTATION = `
-  UPDATE cards.feed_settings SET card_orientation = $1 WHERE user_sub = $2;
+export const UPDATE_FEED_SETTINGS = `
+  UPDATE cards.feed_settings
+  SET card_orientation = $1, study_mode = $2
+  WHERE user_sub = $3;
 `;
 
 export const UPDATE_CARD = `
@@ -563,7 +566,8 @@ export const GET_DESK_DETAILS = `
       ds.card_orientation,
       ds.front_language,
       ds.back_language,
-      ds.example_language
+      ds.example_language,
+      ds.study_mode
     FROM cards.desk d
     LEFT JOIN cards.desk_settings ds ON ds.desk_sub = d.sub
     WHERE d.sub = $1
@@ -611,7 +615,8 @@ export const GET_DESK_DETAILS = `
       'card_orientation', dd.card_orientation,
       'front_language', dd.front_language,
       'back_language', dd.back_language,
-      'example_language', dd.example_language
+      'example_language', dd.example_language,
+      'study_mode', dd.study_mode
     ) AS settings,
     COALESCE(
       json_agg(
@@ -638,7 +643,7 @@ export const GET_DESK_DETAILS = `
   GROUP BY 
     dd.sub, dd.title, dd.description, dd.created_at, 
     dd.cards_per_session, dd.card_orientation,
-    dd.front_language, dd.back_language, dd.example_language,
+    dd.front_language, dd.back_language, dd.example_language, dd.study_mode,
     sc.total_cards, sc.new_cards, sc.due_today, sc.mastered_cards, sc.avg_ease_factor;
 `;
 

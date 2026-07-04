@@ -1,11 +1,15 @@
 {
   "type": "object",
-  "required": ["card_orientation"],
+  "required": ["card_orientation", "study_mode"],
   "additionalProperties": false,
   "properties": {
     "card_orientation": {
       "type": "string",
       "enum": ["normal", "reversed", "mixed"]
+    },
+    "study_mode": {
+      "type": "string",
+      "enum": ["write", "reveal", "match", "swipe"]
     }
   }
 }

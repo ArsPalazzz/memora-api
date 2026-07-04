@@ -1,10 +1,10 @@
 export const CREATE_GAME_SESSION = `
   INSERT INTO games.session(id, user_sub, type, mode, desk_sub, status, created_at)
-    VALUES($1,$2,'desk','write',$3,'active',NOW())`;
+    VALUES($1,$2,'desk',$3,$4,'active',NOW())`;
 
 export const CREATE_REVIEW_SESSION = `
   INSERT INTO games.session(id, user_sub, type, mode, batch_id, status, created_at)
-    VALUES($1,$2,'review','write',$3,'active',NOW())`;
+    VALUES($1,$2,'review',$3,$4,'active',NOW())`;
 
 export const HAVE_ACCESS_TO_SESSION = `
   SELECT EXISTS (SELECT 1 FROM games.session WHERE id = $1 AND user_sub = $2);
@@ -97,7 +97,15 @@ export const GET_NEXT_UNANSWERED_CARD = `
     sc.card_sub AS "cardSub",
     sc.direction,
     c.front_variants AS "frontVariants",
-    c.back_variants AS "backVariants"
+    c.back_variants AS "backVariants",
+    COALESCE(
+      (
+        SELECT array_agg(ce.sentence ORDER BY ce.created_at)
+        FROM cards.card_examples ce
+        WHERE ce.card_sub = sc.card_sub
+      ),
+      ARRAY[]::text[]
+    ) AS examples
   FROM games.session_card sc
   JOIN games.session s ON s.id = sc.session_id
   JOIN cards.card c ON c.sub = sc.card_sub
@@ -114,7 +122,15 @@ export const GET_CARD_IN_SESSION_BY_SUB = `
     sc.card_sub AS "cardSub",
     sc.direction,
     c.front_variants AS "frontVariants",
-    c.back_variants AS "backVariants"
+    c.back_variants AS "backVariants",
+    COALESCE(
+      (
+        SELECT array_agg(ce.sentence ORDER BY ce.created_at)
+        FROM cards.card_examples ce
+        WHERE ce.card_sub = sc.card_sub
+      ),
+      ARRAY[]::text[]
+    ) AS examples
   FROM games.session_card sc
   JOIN games.session s ON s.id = sc.session_id
   JOIN cards.card c ON c.sub = sc.card_sub
@@ -134,6 +150,15 @@ export const SAVE_ANSWER = `
   WHERE id = $3;
 `;
 
+export const SAVE_REVEAL = `
+  UPDATE games.session_card
+  SET
+    user_answer = NULL,
+    is_correct = NULL,
+    answered_at = NOW()
+  WHERE id = $1;
+`;
+
 export const HAS_UNANSWERED_CARDS = `
   SELECT EXISTS (
     SELECT 1
@@ -146,7 +171,11 @@ export const HAS_UNANSWERED_CARDS = `
 
 export const CREATE_FEED_SESSION = `
   INSERT INTO games.session(id, user_sub, type, mode, status, created_at)
-    VALUES($1,$2,'feed','swipe','active',NOW())`;
+    VALUES($1,$2,'feed',$3,'active',NOW())`;
+
+export const GET_SESSION_MODE = `
+  SELECT mode FROM games.session WHERE id = $1;
+`;
 
 export const GET_FEED_NEXT_CARD = `
   WITH user_preferences AS (

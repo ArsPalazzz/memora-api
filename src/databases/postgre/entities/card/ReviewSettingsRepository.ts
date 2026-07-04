@@ -6,6 +6,7 @@ import {
   GET_REVIEW_SETTINGS_BY_USER_SUB,
   UPDATE_REVIEW_SETTINGS,
 } from './ReviewSettingsRepositoryQueries';
+import { StudyMode } from '../../../../services/games/studyMode.const';
 
 export class ReviewSettingsRepository extends Table {
   async create(userSub: string) {
@@ -35,14 +36,18 @@ export class ReviewSettingsRepository extends Table {
       values: [userSub],
     };
 
-    return this.getItem<{ cards_per_session: number }>(query);
+    return this.getItem<{ cards_per_session: number; study_mode: StudyMode }>(query);
   }
 
-  async updateReviewSettings(params: { userSub: string; cards_per_session: number }) {
+  async updateReviewSettings(params: {
+    userSub: string;
+    cards_per_session: number;
+    study_mode: StudyMode;
+  }) {
     const query: Query = {
       name: 'updateReviewSettings',
       text: UPDATE_REVIEW_SETTINGS,
-      values: [params.cards_per_session, params.userSub],
+      values: [params.cards_per_session, params.study_mode, params.userSub],
     };
 
     return this.updateItems(query);

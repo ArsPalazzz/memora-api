@@ -6,6 +6,7 @@ import {
   GET_FEED_SETTINGS_BY_USER_SUB,
 } from './FeedSettingsRepositoryQueries';
 import { CARD_ORIENTATION } from '../../../../services/cards/card.const';
+import { StudyMode } from '../../../../services/games/studyMode.const';
 
 export class FeedSettingsRepository extends Table {
   async create(userSub: string) {
@@ -35,7 +36,7 @@ export class FeedSettingsRepository extends Table {
       values: [userSub],
     };
 
-    return this.getItem<{ card_orientation: CARD_ORIENTATION }>(query);
+    return this.getItem<{ card_orientation: CARD_ORIENTATION; study_mode: StudyMode }>(query);
   }
 }
 
