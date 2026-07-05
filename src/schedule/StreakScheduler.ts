@@ -13,8 +13,6 @@ class StreakScheduler {
     this.scheduledTask = cron.schedule('0 21 * * *', () => {
       this.updateStreaksForMidnight();
     });
-
-    this.updateStreaksForMidnight();
   }
 
   async stop(): Promise<void> {
@@ -54,21 +52,31 @@ class StreakScheduler {
     const streakData = await streakStatsRepository.getByUserId(userId);
     if (!streakData) return;
 
+    const processedDate = streakData.last_streak_processed_date
+      ? String(streakData.last_streak_processed_date).slice(0, 10)
+      : null;
+
+    if (processedDate === yesterdayStr) {
+      this.logger.debug(
+        `Skipping streak update for user ${userId} (${yesterdayStr} already processed)`
+      );
+      return;
+    }
+
     const yesterdayStats = await dailyStatsRepository.getStatsForDate(userId, yesterdayStr);
 
     if (!yesterdayStats) {
       await streakStatsRepository.resetStreak(userId);
       this.logger.debug(`Reset streak for user ${userId} (didn't study yesterday)`);
-      return;
-    }
-
-    if (yesterdayStats.goal_achieved) {
+    } else if (yesterdayStats.goal_achieved) {
       await streakStatsRepository.incrementStreak(userId);
       this.logger.debug(`Increased streak for user ${userId} to ${streakData.current_streak + 1}`);
     } else {
       await streakStatsRepository.resetStreak(userId);
       this.logger.debug(`Reset streak for user ${userId} (didn't complete goal)`);
     }
+
+    await streakStatsRepository.markStreakProcessed(userId, yesterdayStr);
   }
 }
 

@@ -21,7 +21,27 @@ export class StreakStatsRepository extends Table {
       values: [userId],
     };
 
-    return this.getItem<{ current_streak: number; longest_streak: number }>(query);
+    return this.getItem<{
+      current_streak: number;
+      longest_streak: number;
+      last_streak_processed_date: string | null;
+    }>(query);
+  }
+
+  async markStreakProcessed(userId: number, processedDate: string) {
+    const query: Query = {
+      name: 'markStreakProcessed',
+      text: `
+        UPDATE users.streak_stats
+        SET
+          last_streak_processed_date = $2,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE user_id = $1
+      `,
+      values: [userId, processedDate],
+    };
+
+    return this.updateItems(query);
   }
 
   async incrementStreak(userId: number) {
