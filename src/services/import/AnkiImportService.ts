@@ -20,6 +20,7 @@ import {
   buildExistingLocationLabel,
   normalizeCardText,
   parseAnkiTagsToFolderPath,
+  restoreAnkiSanitizedDeckTitle,
   sanitizeImportText,
 } from './ankiImport.utils';
 import logger from '../../logger';
@@ -43,11 +44,12 @@ export class AnkiImportService {
     const previewDesks = [];
 
     for (const desk of desks) {
+      const title = restoreAnkiSanitizedDeckTitle(desk.title);
       const folderPath = desk.folderPath.length
         ? desk.folderPath
         : parseAnkiTagsToFolderPath(desk.tags);
 
-      const existingDeskSub = await this.findExistingDeskSub(userSub, desk.title, folderPath);
+      const existingDeskSub = await this.findExistingDeskSub(userSub, title, folderPath);
       let estimatedDuplicateCards = 0;
       let estimatedNewCards = desk.cards.length;
 
@@ -85,7 +87,7 @@ export class AnkiImportService {
 
       previewDesks.push({
         clientId: desk.clientId,
-        title: desk.title,
+        title,
         tags: desk.tags,
         folderPath,
         fieldNames: desk.fieldNames,
@@ -268,11 +270,12 @@ export class AnkiImportService {
     onCardProcessed: () => Promise<void>
   ) {
     const strategy = deskPayload.strategy ?? payload.defaultStrategy;
+    const title = restoreAnkiSanitizedDeckTitle(deskPayload.title);
     const folderPath = deskPayload.folderPath.length
       ? deskPayload.folderPath
       : parseAnkiTagsToFolderPath(deskPayload.tags);
 
-    const existingDeskSub = await this.findExistingDeskSub(userSub, deskPayload.title, folderPath);
+    const existingDeskSub = await this.findExistingDeskSub(userSub, title, folderPath);
 
     if (strategy === 'skip' && existingDeskSub) {
       for (let index = 0; index < deskPayload.cards.length; index += 1) {
@@ -281,7 +284,7 @@ export class AnkiImportService {
 
       return {
         clientId: deskPayload.clientId,
-        title: deskPayload.title,
+        title,
         deskSub: existingDeskSub,
         strategy,
         created: false,
@@ -297,8 +300,8 @@ export class AnkiImportService {
     const deskTitle =
       strategy === 'rename'
         ? deskPayload.renameTitle?.trim() ||
-          `${deskPayload.title} (import ${new Date().toISOString().slice(0, 10)})`
-        : deskPayload.title;
+          `${title} (import ${new Date().toISOString().slice(0, 10)})`
+        : title;
 
     if (!deskSub || strategy === 'rename') {
       deskSub = await this.createDeskInFolder(userSub, deskTitle, folderPath, folderCache, payload.languageSettings);
