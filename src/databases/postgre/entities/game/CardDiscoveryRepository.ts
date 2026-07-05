@@ -82,6 +82,14 @@ random_pool AS (
   SELECT *
   FROM candidate_cards cc
   WHERE mod(abs(hashtextextended(cc.sub::text || $5::text, 0)), 4) = 0
+  UNION ALL
+  SELECT *
+  FROM candidate_cards cc
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM candidate_cards sampled
+    WHERE mod(abs(hashtextextended(sampled.sub::text || $5::text, 0)), 4) = 0
+  )
   LIMIT GREATEST($4::int * 100, 400)
 ),
 scored_cards AS (

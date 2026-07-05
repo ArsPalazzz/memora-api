@@ -343,8 +343,8 @@ export async function startFeedSessionCtr(req: Request, res: Response, next: Nex
   try {
     const userSub = res.locals.userSub as string;
 
-    const { sessionId, mode } = await gameService.startFeedSession(userSub);
-    res.json({ sessionId, mode });
+    const result = await gameService.startFeedSession(userSub);
+    res.json(result);
   } catch (e) {
     next(e);
   }
