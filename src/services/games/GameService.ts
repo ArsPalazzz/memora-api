@@ -242,29 +242,41 @@ export class GameService {
     await this.gameSessionRepository.finish(sessionId);
   }
 
-  async startFeedSession(userSub: string): Promise<any> {
+  async startFeedSession(userSub: string) {
     const sessionId = uuidV4();
     const feedSettings = await this.cardService.getFeedSettingsByUserSub(userSub);
     const studyMode = normalizeFeedStudyMode(feedSettings?.study_mode ?? DEFAULT_FEED_STUDY_MODE);
 
     await this.gameSessionRepository.createFeed(sessionId, userSub, studyMode);
 
-    return { sessionId, mode: studyMode };
+    const feed = await this.getFeedNextCard(userSub, sessionId, { feedSettings });
+
+    return {
+      sessionId,
+      mode: studyMode,
+      cards: feed?.cards ?? [],
+    };
   }
 
-  async getFeedNextCard(userSub: string, sessionId: string) {
+  async getFeedNextCard(
+    userSub: string,
+    sessionId: string,
+    options?: {
+      feedSettings?: Awaited<ReturnType<CardService['getFeedSettingsByUserSub']>>;
+    }
+  ) {
     const haveAccess = await this.gameSessionRepository.haveAccessToSession(sessionId, userSub);
     if (!haveAccess) {
       throw new NotFoundError('No access to session');
     }
 
-    const shownCardSubs = await this.getShownCardsInSession(userSub, sessionId);
-
-    const userPreferences = await this.getUserTopicPreferences(userSub);
+    const [shownCardSubs, userPreferences, feedSettings] = await Promise.all([
+      this.getShownCardsInSession(userSub, sessionId),
+      this.getUserTopicPreferences(userSub),
+      options?.feedSettings ?? this.cardService.getFeedSettingsByUserSub(userSub),
+    ]);
 
     const limit = shownCardSubs.length === 0 ? 5 : 1;
-
-    const feedSettings = await this.cardService.getFeedSettingsByUserSub(userSub);
 
     const cards = await this.cardService.getCardForFeed({
       userSub,
@@ -405,8 +417,10 @@ export class GameService {
   }
 
   private async getUserTopicPreferences(userSub: string) {
-    const userDesks = await this.cardService.getUserDesks(userSub);
-    const likedCards = await this.cardService.getLikedCards(userSub);
+    const [userDesks, likedCards] = await Promise.all([
+      this.cardService.getUserDesks(userSub),
+      this.cardService.getLikedCards(userSub),
+    ]);
 
     const topics = new Set<string>();
     userDesks.forEach((desk) => {
