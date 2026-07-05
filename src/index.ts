@@ -4,6 +4,7 @@ import Postgres from './databases/postgre';
 import { port, serviceName, postgresOptions } from './config';
 import NotificationScheduler from './schedule/NotificationScheduler';
 import StreakScheduler from './schedule/StreakScheduler';
+import { logServerPublicIp } from './utils/logServerPublicIp';
 
 let notificationScheduler: NotificationScheduler | null = null;
 let streakScheduler: StreakScheduler | null = null;
@@ -39,9 +40,10 @@ const startServer = async () => {
   try {
     await Postgres.createConnection(postgresOptions);
     httpServer
-      .listen(port, '0.0.0.0', () =>
-        logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`)
-      )
+      .listen(port, '0.0.0.0', () => {
+        logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`);
+        void logServerPublicIp(logger);
+      })
       .on('error', (err) => {
         logger.error('HTTP server error:', err);
         process.exit(1);
