@@ -20,7 +20,18 @@ export class CardDiscoveryRepository extends Table {
     const query: Query = {
       name: 'getCardForFeed',
       text: `
- WITH candidate_cards AS (
+ WITH current_session_cards AS (
+  SELECT sc.card_sub
+  FROM games.session_card sc
+  WHERE sc.session_id = $5
+),
+user_copied_original_ids AS (
+  SELECT uc.copy_of AS original_id
+  FROM cards.card uc
+  INNER JOIN cards.desk ud ON ud.sub = uc.desk_sub AND ud.creator_sub = $1
+  WHERE uc.copy_of IS NOT NULL
+),
+candidate_cards AS (
   SELECT
     c.sub,
     c.front_variants,
@@ -30,59 +41,57 @@ export class CardDiscoveryRepository extends Table {
     c.global_like_count,
     c.global_answer_count,
     c.desk_sub,
-    c.copy_of,
     d.title as desk_title,
-    d.creator_sub as desk_creator_sub,
     ds.front_language,
     ds.back_language,
-    COALESCE(ts_rank(c.desk_sub_text_search,
-      to_tsquery('english', $2)
-    ), 0) as topic_relevance,
+    CASE
+      WHEN $2 = '' THEN 0
+      ELSE COALESCE(
+        ts_rank(
+          c.desk_sub_text_search,
+          to_tsquery('english', $2)
+        ),
+        0
+      )
+    END as topic_relevance,
     CASE
       WHEN c.global_shown_count = 0 THEN 0
       ELSE (c.global_like_count * 1.0 / c.global_shown_count)
     END as popularity_score,
-    EXTRACT(EPOCH FROM (NOW() - c.created_at)) / 86400 as days_old,
-    EXISTS (
-      SELECT 1 FROM games.session_card sc
-      WHERE sc.card_sub = c.sub 
-        AND sc.session_id = $5
-    ) as shown_in_current_session
+    EXTRACT(EPOCH FROM (NOW() - c.created_at)) / 86400 as days_old
   FROM cards.card c
-  JOIN cards.desk d ON d.sub = c.desk_sub
-  JOIN cards.desk_settings ds ON ds.desk_sub = c.desk_sub
-  WHERE
-    d.public = true
-    AND c.copy_of IS NULL
+  INNER JOIN cards.desk d
+    ON d.sub = c.desk_sub
+    AND d.public = true
     AND d.creator_sub != $1
-    AND (CASE 
-      WHEN $3::uuid[] IS NULL OR array_length($3::uuid[], 1) IS NULL THEN true
-      ELSE NOT (c.sub = ANY($3::uuid[]))
-    END)
-    AND NOT EXISTS (
-      SELECT 1 FROM cards.card uc
-      JOIN cards.desk ud ON ud.sub = uc.desk_sub
-      WHERE uc.copy_of = c.id
-        AND ud.creator_sub = $1
-    )
+  INNER JOIN cards.desk_settings ds ON ds.desk_sub = c.desk_sub
+  LEFT JOIN current_session_cards csc ON csc.card_sub = c.sub
+  LEFT JOIN user_copied_original_ids uco ON uco.original_id = c.id
+  WHERE
+    c.copy_of IS NULL
     AND c.global_shown_count < 1000
+    AND csc.card_sub IS NULL
+    AND uco.original_id IS NULL
+    AND (
+      $3::uuid[] IS NULL
+      OR array_length($3::uuid[], 1) IS NULL
+      OR NOT (c.sub = ANY($3::uuid[]))
+    )
 ),
-current_session_cards AS (
-  SELECT DISTINCT sc.card_sub
-  FROM games.session_card sc
-  WHERE sc.session_id = $5
+random_pool AS (
+  SELECT *
+  FROM candidate_cards cc
+  WHERE mod(abs(hashtextextended(cc.sub::text || $5::text, 0)), 4) = 0
+  LIMIT GREATEST($4::int * 100, 400)
 ),
 scored_cards AS (
-  SELECT *,
+  SELECT
+    rp.*,
     (topic_relevance * 0.4) +
     (popularity_score * 0.3) +
     (CASE WHEN days_old < 30 THEN (30 - days_old) / 30 * 0.2 ELSE 0 END) +
-    (CASE WHEN NOT shown_in_current_session THEN 0.2 ELSE -1.0 END) +
     (RANDOM() * 0.1) as final_score
-  FROM candidate_cards
-  WHERE NOT EXISTS (
-    SELECT 1 FROM current_session_cards csc WHERE csc.card_sub = sub
-  )
+  FROM random_pool rp
   ORDER BY final_score DESC
   LIMIT $4
 ),
@@ -120,11 +129,11 @@ SELECT
   sc.global_shown_count,
   sc.global_like_count,
   sc.global_answer_count,
-    sc.desk_sub,
-    sc.desk_title,
-    sc.front_language,
-    sc.back_language,
-    COALESCE(ce.examples, ARRAY[]::text[]) as examples,
+  sc.desk_sub,
+  sc.desk_title,
+  sc.front_language,
+  sc.back_language,
+  COALESCE(ce.examples, ARRAY[]::text[]) as examples,
   CASE 
     WHEN $6 = 'normal' THEN 'front_to_back'
     WHEN $6 = 'reversed' THEN 'back_to_front'
