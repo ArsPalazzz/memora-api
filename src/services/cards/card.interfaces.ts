@@ -1,4 +1,4 @@
-import { CARD_ORIENTATION } from './card.const';
+import { CARD_ORIENTATION, DeskVisibility } from './card.const';
 
 export interface GetDeskPayload {
   sub: string;
@@ -16,6 +16,7 @@ export interface GetDeskDetailsResult {
   sub: string;
   title: string;
   description: string;
+  visibility: DeskVisibility;
   created_at: string;
   cards: Card[];
   settings: {

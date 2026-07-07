@@ -20,6 +20,12 @@ import {
   GET_DESK_DETAILS,
   GET_DESK_SUBS_BY_CREATOR_SUB,
   GET_DESKS_BY_CREATOR_SUB,
+  GET_INBOX_DESK_BY_CREATOR,
+  GET_INBOX_NEW_CARD_COUNT,
+  GET_PUBLIC_DESKS_BY_CREATOR,
+  GET_PROFILE_DESKS_BY_CREATOR,
+  GET_DESK_PUBLIC_META,
+  GET_PUBLIC_DESK_CARD_PREVIEWS,
   GET_FOLDER_CONTENTS,
   GET_FOLDER_INFO,
   GET_DESK_FOLDER,
@@ -30,6 +36,7 @@ import {
   GET_ROOT_FOLDERS,
   HAVE_ACCESS_TO_CARD,
   HAVE_ACCESS_TO_DESK,
+  CAN_USER_VIEW_DESK,
   HAVE_ACCESS_TO_FOLDER,
   INSERT_CARD,
   INSERT_DESK,
@@ -38,12 +45,15 @@ import {
   IS_FOLDER_DESCENDANT_OR_SELF,
   DELETE_CARDS_BY_DESK_SUB,
   GET_CARDS_WITH_EXAMPLES_BY_DESK,
+  GET_DESK_CARDS_FOR_LIBRARY_CLONE,
+  INSERT_DESK_SETTINGS_COPY,
   GET_DESK_SUB_BY_TITLE_AT_ROOT,
   GET_DESK_SUB_BY_TITLE_IN_FOLDER,
   REMOVE_DESK_FROM_FOLDERS,
   RESTORE_DESK,
   UPDATE_CARD,
   UPDATE_DESK,
+  UPDATE_DESK_WITH_VISIBILITY,
   UPDATE_DESK_SETTINGS,
   UPDATE_FOLDER_PARENT,
   UPDATE_FEED_SETTINGS,
@@ -64,7 +74,9 @@ import {
   DEFAULT_BACK_LANGUAGE,
   DEFAULT_EXAMPLE_LANGUAGE,
   DEFAULT_FRONT_LANGUAGE,
+  DeskVisibility,
   LanguageCode,
+  visibilityToLegacyPublic,
 } from '../../../../services/cards/card.const';
 import { StudyMode } from '../../../../services/games/studyMode.const';
 import { DatabaseError } from '../../../../exceptions';
@@ -225,6 +237,7 @@ export class CardRepository extends Table {
       dueCards: string;
       learningCards: string;
       masteredCards: string;
+      sourceCreatorNickname: string | null;
     }>(query);
 
     return result
@@ -236,7 +249,98 @@ export class CardRepository extends Table {
         dueCards: parseInt(item.dueCards, 10) || 0,
         learningCards: parseInt(item.learningCards, 10) || 0,
         masteredCards: parseInt(item.masteredCards, 10) || 0,
+        sourceCreatorNickname: item.sourceCreatorNickname ?? undefined,
       }));
+  }
+
+  async getInboxDeskSub(userSub: string): Promise<string | null> {
+    const query: Query = {
+      name: 'getInboxDeskSub',
+      text: GET_INBOX_DESK_BY_CREATOR,
+      values: [userSub],
+    };
+
+    const row = await this.getItem<{ sub: string }>(query);
+    return row?.sub ?? null;
+  }
+
+  async getInboxNewCardCount(userSub: string): Promise<number> {
+    const query: Query = {
+      name: 'getInboxNewCardCount',
+      text: GET_INBOX_NEW_CARD_COUNT,
+      values: [userSub],
+    };
+
+    const row = await this.getItem<{ count: number }>(query);
+    return row?.count ?? 0;
+  }
+
+  async getPublicDesksByCreatorSub(userSub: string) {
+    const query: Query = {
+      name: 'getPublicDesksByCreatorSub',
+      text: GET_PUBLIC_DESKS_BY_CREATOR,
+      values: [userSub],
+    };
+
+    return this.getItems<{
+      sub: string;
+      title: string;
+      card_count: number;
+      total_saves: number;
+    }>(query);
+  }
+
+  async getProfileDesksByCreatorSub(creatorSub: string, includeFriendsDesks: boolean) {
+    const query: Query = {
+      name: 'getProfileDesksByCreatorSub',
+      text: GET_PROFILE_DESKS_BY_CREATOR,
+      values: [creatorSub, includeFriendsDesks],
+    };
+
+    return this.getItems<{
+      sub: string;
+      title: string;
+      card_count: number;
+      total_saves: number;
+    }>(query);
+  }
+
+  async getDeskPublicMeta(deskSub: string) {
+    const query: Query = {
+      name: 'getDeskPublicMeta',
+      text: GET_DESK_PUBLIC_META,
+      values: [deskSub],
+    };
+
+    return this.getItem<{
+      sub: string;
+      title: string;
+      description: string | null;
+      public: boolean;
+      visibility: DeskVisibility;
+      status: string;
+      is_inbox: boolean;
+      creator_sub: string;
+      creator_nickname: string;
+      card_count: number;
+    }>(query);
+  }
+
+  async getPublicDeskCardPreviews(params: {
+    deskSub: string;
+    limit: number;
+    offset: number;
+  }) {
+    const query: Query = {
+      name: 'getPublicDeskCardPreviews',
+      text: GET_PUBLIC_DESK_CARD_PREVIEWS,
+      values: [params.deskSub, params.limit, params.offset],
+    };
+
+    return this.getItems<{
+      sub: string;
+      front_variants: string[];
+    }>(query);
   }
 
   async getArchivedDesksByCreatorSub(userSub: string) {
@@ -450,6 +554,16 @@ export class CardRepository extends Table {
     return this.exists(query);
   }
 
+  async canUserViewDesk(params: { user_sub: string; desk_sub: string }) {
+    const query: Query = {
+      name: 'canUserViewDesk',
+      text: CAN_USER_VIEW_DESK,
+      values: [params.desk_sub, params.user_sub],
+    };
+
+    return this.exists(query);
+  }
+
   async haveAccessToCard(params: { user_sub: string; card_sub: string }) {
     const query: Query = {
       name: 'haveAccessToCard',
@@ -464,19 +578,29 @@ export class CardRepository extends Table {
     sub: string;
     title: string;
     description: string;
-    public: boolean;
+    visibility: DeskVisibility;
     creatorSub: string;
+    isInbox?: boolean;
     frontLanguage?: LanguageCode;
     backLanguage?: LanguageCode;
     exampleLanguage?: LanguageCode;
   }) {
     const tx = await this.startTransaction();
+    const isPublic = visibilityToLegacyPublic(params.visibility);
 
     try {
       const desk = await tx.query({
         name: 'insertDesk',
         text: INSERT_DESK,
-        values: [params.sub, params.title, params.description, params.public, params.creatorSub],
+        values: [
+          params.sub,
+          params.title,
+          params.description,
+          isPublic,
+          params.visibility,
+          params.creatorSub,
+          params.isInbox ?? false,
+        ],
       });
 
       await tx.query({
@@ -702,12 +826,26 @@ export class CardRepository extends Table {
     }));
   }
 
-  async updateDesk(params: { desk_sub: string; payload: { title: string; description: string } }) {
-    const query: Query = {
-      name: 'updateDesk',
-      text: UPDATE_DESK,
-      values: [params.desk_sub, params.payload.title, params.payload.description],
-    };
+  async updateDesk(params: {
+    desk_sub: string;
+    payload: { title: string; description: string; visibility?: DeskVisibility };
+  }) {
+    const query: Query = params.payload.visibility
+      ? {
+          name: 'updateDeskWithVisibility',
+          text: UPDATE_DESK_WITH_VISIBILITY,
+          values: [
+            params.desk_sub,
+            params.payload.title,
+            params.payload.description,
+            params.payload.visibility,
+          ],
+        }
+      : {
+          name: 'updateDesk',
+          text: UPDATE_DESK,
+          values: [params.desk_sub, params.payload.title, params.payload.description],
+        };
 
     return this.updateItems(query);
   }
@@ -848,6 +986,105 @@ export class CardRepository extends Table {
     };
 
     return this.updateItems(query);
+  }
+
+  async createCardCloneTx(
+    tx: PgTransaction,
+    card: {
+      sub: string;
+      deskSub: string;
+      frontVariants: string[];
+      backVariants: string[];
+      imageUuid?: string;
+      copyOf: number;
+    }
+  ): Promise<void> {
+    await tx.query({
+      name: 'createCardCloneTx',
+      text: `
+        INSERT INTO cards.card
+          (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of)
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `,
+      values: [
+        card.sub,
+        card.deskSub,
+        JSON.stringify(card.frontVariants),
+        JSON.stringify(card.backVariants),
+        card.imageUuid || null,
+        card.copyOf,
+      ],
+    });
+  }
+
+  async insertDeskInTx(
+    tx: PgTransaction,
+    params: {
+      sub: string;
+      title: string;
+      description: string;
+      visibility?: DeskVisibility;
+      creatorSub: string;
+    }
+  ): Promise<void> {
+    const visibility = params.visibility ?? 'private';
+    await tx.query({
+      name: 'insertDeskInTx',
+      text: INSERT_DESK,
+      values: [
+        params.sub,
+        params.title,
+        params.description,
+        visibilityToLegacyPublic(visibility),
+        visibility,
+        params.creatorSub,
+        false,
+      ],
+    });
+  }
+
+  async insertDeskSettingsCopyInTx(
+    tx: PgTransaction,
+    params: {
+      deskSub: string;
+      cardsPerSession: number;
+      cardOrientation: CARD_ORIENTATION;
+      frontLanguage: LanguageCode;
+      backLanguage: LanguageCode;
+      exampleLanguage: LanguageCode;
+      studyMode: StudyMode;
+    }
+  ): Promise<void> {
+    await tx.query({
+      name: 'insertDeskSettingsCopyInTx',
+      text: INSERT_DESK_SETTINGS_COPY,
+      values: [
+        params.deskSub,
+        params.cardsPerSession,
+        params.cardOrientation,
+        params.frontLanguage,
+        params.backLanguage,
+        params.exampleLanguage,
+        params.studyMode,
+      ],
+    });
+  }
+
+  async getDeskCardsForLibraryClone(deskSub: string) {
+    const query: Query = {
+      name: 'getDeskCardsForLibraryClone',
+      text: GET_DESK_CARDS_FOR_LIBRARY_CLONE,
+      values: [deskSub],
+    };
+
+    return this.getItems<{
+      id: number;
+      sub: string;
+      front_variants: string[];
+      back_variants: string[];
+      image_uuid: string | null;
+      examples: string[];
+    }>(query);
   }
 
   async getCardsWithExamplesByDesk(deskSub: string) {

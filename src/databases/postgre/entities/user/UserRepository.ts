@@ -6,7 +6,7 @@ import {
   GetProfileIdBySubRes,
 } from '../../../../services/users/user.interfaces';
 import Table from '../Table';
-import { INSERT_USER } from './UserRepositoryQueries';
+import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
 
 export class UserRepository extends Table {
   async createUser(params: CreateUserParams) {
@@ -44,7 +44,7 @@ export class UserRepository extends Table {
   async getProfileBySub(sub: string) {
     const query: Query = {
       name: 'getProfileBySub',
-      text: `SELECT sub, nickname, email, created_at FROM users.profile WHERE sub = $1 LIMIT 1;`,
+      text: `SELECT sub, nickname, email, created_at, stats_public, league_notifications FROM users.profile WHERE sub = $1 LIMIT 1;`,
       values: [sub],
     };
 
@@ -80,6 +80,93 @@ export class UserRepository extends Table {
 
     const res = await this.getItems<{ id: number }>(query);
     return res.map((item) => item.id);
+  }
+
+  async getPublicProfileByNickname(nickname: string) {
+    const query: Query = {
+      name: 'getPublicProfileByNickname',
+      text: GET_PUBLIC_PROFILE_BY_NICKNAME,
+      values: [nickname],
+    };
+
+    return this.getItem<{
+      sub: string;
+      nickname: string;
+      created_at: string;
+      stats_public: boolean;
+    }>(query);
+  }
+
+  async updateStatsPublic(userSub: string, statsPublic: boolean): Promise<void> {
+    const query: Query = {
+      name: 'updateStatsPublic',
+      text: UPDATE_STATS_PUBLIC,
+      values: [userSub, statsPublic],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async updateLeagueNotifications(userSub: string, enabled: boolean): Promise<void> {
+    const query: Query = {
+      name: 'updateLeagueNotifications',
+      text: UPDATE_LEAGUE_NOTIFICATIONS,
+      values: [userSub, enabled],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async getLeagueNotificationState(userSub: string) {
+    const query: Query = {
+      name: 'getLeagueNotificationState',
+      text: GET_LEAGUE_NOTIFICATION_STATE,
+      values: [userSub],
+    };
+
+    return this.getItem<{
+      league_notifications: boolean;
+      league_last_rank: number | null;
+      league_last_week_start: string | null;
+      league_last_notified_date: string | null;
+    }>(query);
+  }
+
+  async updateLeagueNotificationState(
+    userSub: string,
+    params: {
+      lastRank: number | null;
+      weekStart: string;
+      notifiedDate?: string | null;
+    }
+  ): Promise<void> {
+    const query: Query = {
+      name: 'updateLeagueNotificationState',
+      text: UPDATE_LEAGUE_NOTIFICATION_STATE,
+      values: [userSub, params.lastRank, params.weekStart, params.notifiedDate ?? null],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async markLeagueNotifiedToday(userSub: string, date: string): Promise<void> {
+    const query: Query = {
+      name: 'markLeagueNotifiedToday',
+      text: MARK_LEAGUE_NOTIFIED_TODAY,
+      values: [userSub, date],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async getUsersForLeagueNotifications() {
+    const query: Query = {
+      name: 'getUsersForLeagueNotifications',
+      text: GET_USERS_FOR_LEAGUE_NOTIFICATIONS,
+      values: [],
+    };
+
+    return this.getItems<{ sub: string }>(query);
   }
 }
 

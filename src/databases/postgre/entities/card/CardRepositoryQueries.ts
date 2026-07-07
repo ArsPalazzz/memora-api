@@ -69,6 +69,32 @@ export const HAVE_ACCESS_TO_DESK = `
   SELECT EXISTS (SELECT 1 FROM cards.desk WHERE sub = $1 AND creator_sub = $2);
 `;
 
+export const CAN_USER_VIEW_DESK = `
+  SELECT EXISTS (
+    SELECT 1
+    FROM cards.desk d
+    WHERE d.sub = $1
+      AND d.status = 'active'
+      AND d.is_inbox = false
+      AND (
+        d.creator_sub = $2
+        OR d.visibility = 'public'
+        OR (
+          d.visibility = 'friends'
+          AND EXISTS (
+            SELECT 1
+            FROM users.friendship f
+            WHERE f.status = 'accepted'
+              AND (
+                (f.requester_sub = $2 AND f.addressee_sub = d.creator_sub)
+                OR (f.requester_sub = d.creator_sub AND f.addressee_sub = $2)
+              )
+          )
+        )
+      )
+  ) AS can_view;
+`;
+
 export const HAVE_ACCESS_TO_CARD = `
   SELECT EXISTS (
     SELECT 1
@@ -93,6 +119,16 @@ export const UPDATE_DESK_SETTINGS = `
 
 export const UPDATE_DESK = `
   UPDATE cards.desk SET title = $2, description = $3 WHERE sub = $1;
+`;
+
+export const UPDATE_DESK_WITH_VISIBILITY = `
+  UPDATE cards.desk
+  SET
+    title = $2,
+    description = $3,
+    visibility = $4,
+    public = ($4 = 'public')
+  WHERE sub = $1;
 `;
 
 export const UPDATE_FEED_SETTINGS = `
@@ -138,7 +174,9 @@ export const DELETE_CARD = `
 `;
 
 export const INSERT_DESK = `
-  INSERT INTO cards.desk (sub, title, description, public, creator_sub) VALUES ($1, $2, $3, $4, $5) RETURNING created_at;
+  INSERT INTO cards.desk (sub, title, description, public, visibility, creator_sub, is_inbox)
+  VALUES ($1, $2, $3, $4, $5, $6, $7)
+  RETURNING created_at;
 `;
 
 export const INSERT_FOLDER = `
@@ -470,7 +508,9 @@ export const GET_DESKS_BY_CREATOR_SUB = `
       WHEN ucs.interval_minutes > 43200
       THEN c.sub
     END
-  ) AS "masteredCards" -- FIX
+  ) AS "masteredCards", -- FIX
+
+  sp.nickname AS "sourceCreatorNickname"
 
 FROM cards.desk d
 LEFT JOIN cards.card c
@@ -480,17 +520,121 @@ LEFT JOIN cards.user_card_srs ucs
  AND ucs.user_sub = $1
 LEFT JOIN cards.folder_desk fd
   ON fd.desk_sub = d.sub
+LEFT JOIN cards.desk_library_entry dle
+  ON dle.local_desk_sub = d.sub
+ AND dle.user_sub = $1
+LEFT JOIN users.profile sp
+  ON sp.sub = dle.source_creator_sub
 
-WHERE d.creator_sub = $1 AND fd.desk_sub IS NULL
+WHERE d.creator_sub = $1
+  AND fd.desk_sub IS NULL
+  AND d.is_inbox = false
 
 GROUP BY
   d.sub,
   d.title,
   d.status,
   d.description,
-  d.created_at
+  d.created_at,
+  sp.nickname
 
 ORDER BY d.created_at DESC;
+`;
+
+export const GET_INBOX_DESK_BY_CREATOR = `
+  SELECT sub
+  FROM cards.desk
+  WHERE creator_sub = $1
+    AND is_inbox = true
+    AND status = 'active'
+  LIMIT 1
+`;
+
+export const GET_INBOX_NEW_CARD_COUNT = `
+  SELECT COUNT(*)::int AS count
+  FROM cards.card c
+  INNER JOIN cards.desk d ON d.sub = c.desk_sub
+  LEFT JOIN cards.user_card_srs ucs
+    ON ucs.card_sub = c.sub
+   AND ucs.user_sub = $1
+  WHERE d.creator_sub = $1
+    AND d.is_inbox = true
+    AND d.status = 'active'
+    AND (ucs.repetitions IS NULL OR ucs.repetitions = 0)
+`;
+
+export const GET_PUBLIC_DESKS_BY_CREATOR = `
+  SELECT
+    d.sub,
+    d.title,
+    COUNT(c.sub)::int AS card_count,
+    COALESCE(SUM(c.global_like_count), 0)::int AS total_saves
+  FROM cards.desk d
+  LEFT JOIN cards.card c ON c.desk_sub = d.sub
+  WHERE d.creator_sub = $1
+    AND d.visibility = 'public'
+    AND d.is_inbox = false
+    AND d.status = 'active'
+  GROUP BY d.sub, d.title, d.created_at
+  ORDER BY d.created_at DESC
+`;
+
+export const GET_PROFILE_DESKS_BY_CREATOR = `
+  SELECT
+    d.sub,
+    d.title,
+    COUNT(c.sub)::int AS card_count,
+    COALESCE(SUM(c.global_like_count), 0)::int AS total_saves
+  FROM cards.desk d
+  LEFT JOIN cards.card c ON c.desk_sub = d.sub
+  WHERE d.creator_sub = $1
+    AND d.is_inbox = false
+    AND d.status = 'active'
+    AND (
+      d.visibility = 'public'
+      OR ($2 = true AND d.visibility = 'friends')
+    )
+  GROUP BY d.sub, d.title, d.created_at
+  ORDER BY d.created_at DESC
+`;
+
+export const GET_DESK_PUBLIC_META = `
+  SELECT
+    d.sub,
+    d.title,
+    d.description,
+    d.public,
+    d.visibility,
+    d.status,
+    d.is_inbox,
+    d.creator_sub,
+    p.nickname AS creator_nickname,
+    COUNT(c.sub)::int AS card_count
+  FROM cards.desk d
+  INNER JOIN users.profile p ON p.sub = d.creator_sub
+  LEFT JOIN cards.card c ON c.desk_sub = d.sub
+  WHERE d.sub = $1
+  GROUP BY
+    d.sub,
+    d.title,
+    d.description,
+    d.public,
+    d.visibility,
+    d.status,
+    d.is_inbox,
+    d.creator_sub,
+    p.nickname
+  LIMIT 1
+`;
+
+export const GET_PUBLIC_DESK_CARD_PREVIEWS = `
+  SELECT
+    c.sub,
+    c.front_variants
+  FROM cards.card c
+  WHERE c.desk_sub = $1
+  ORDER BY c.created_at ASC
+  LIMIT $2 OFFSET $3
 `;
 
 export const GET_ARCHIVED_DESKS_BY_CREATOR_SUB = `
@@ -552,7 +696,11 @@ ORDER BY d.created_at DESC;
 `;
 
 export const GET_DESK_SUBS_BY_CREATOR_SUB = `
-  SELECT sub, title FROM cards.desk WHERE creator_sub = $1 ORDER BY created_at DESC;
+  SELECT sub, title
+  FROM cards.desk
+  WHERE creator_sub = $1
+    AND is_inbox = false
+  ORDER BY created_at DESC;
 `;
 
 export const GET_DESK_DETAILS = `
@@ -561,6 +709,7 @@ export const GET_DESK_DETAILS = `
       d.sub,
       d.title,
       d.description,
+      d.visibility,
       d.created_at,
       ds.cards_per_session,
       ds.card_orientation,
@@ -609,6 +758,7 @@ export const GET_DESK_DETAILS = `
     dd.sub,
     dd.title,
     dd.description,
+    dd.visibility,
     dd.created_at,
     json_build_object(
       'cards_per_session', dd.cards_per_session,
@@ -641,7 +791,7 @@ export const GET_DESK_DETAILS = `
   LEFT JOIN desk_cards dc ON true
   LEFT JOIN stats_calculation sc ON true
   GROUP BY 
-    dd.sub, dd.title, dd.description, dd.created_at, 
+    dd.sub, dd.title, dd.description, dd.visibility, dd.created_at, 
     dd.cards_per_session, dd.card_orientation,
     dd.front_language, dd.back_language, dd.example_language, dd.study_mode,
     sc.total_cards, sc.new_cards, sc.due_today, sc.mastered_cards, sc.avg_ease_factor;
@@ -722,6 +872,37 @@ export const GET_DESK_SUB_BY_TITLE_AT_ROOT = `
       SELECT 1 FROM cards.folder_desk fd WHERE fd.desk_sub = d.sub
     )
   LIMIT 1;
+`;
+
+export const GET_DESK_CARDS_FOR_LIBRARY_CLONE = `
+  SELECT
+    c.id,
+    c.sub,
+    c.front_variants,
+    c.back_variants,
+    c.image_uuid,
+    COALESCE(
+      array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
+      ARRAY[]::text[]
+    ) AS examples
+  FROM cards.card c
+  LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
+  WHERE c.desk_sub = $1
+  GROUP BY c.id, c.sub, c.front_variants, c.back_variants, c.image_uuid
+  ORDER BY c.created_at ASC
+`;
+
+export const INSERT_DESK_SETTINGS_COPY = `
+  INSERT INTO cards.desk_settings (
+    desk_sub,
+    cards_per_session,
+    card_orientation,
+    front_language,
+    back_language,
+    example_language,
+    study_mode
+  )
+  VALUES ($1, $2, $3, $4, $5, $6, $7);
 `;
 
 export const GET_CARDS_WITH_EXAMPLES_BY_DESK = `

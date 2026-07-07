@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { tokenValidator } from '../middlewares';
 import {
   addCardToDeskCtr,
+  addCardToInboxCtr,
   answerInGameSessionCtr,
   revealInGameSessionCtr,
   revealInFeedSessionCtr,
@@ -40,5 +41,6 @@ games.post('/games/answer-feed/:sub', tokenValidator, answerInFeedSessionCtr);
 games.post('/games/grade-feed/:sub', tokenValidator, gradeCardInFeedCtr);
 games.post('/games/card-shown', tokenValidator, cardShownCtr);
 games.post('/games/add-to-desk', tokenValidator, addCardToDeskCtr);
+games.post('/games/add-to-inbox', tokenValidator, addCardToInboxCtr);
 
 export { games };

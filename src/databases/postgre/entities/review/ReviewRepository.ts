@@ -1,10 +1,12 @@
 import { Query } from '../..';
 import Table from '../Table';
 import {
-  ADD_CARDS_TO_BATCH,
+  ADD_DUE_CARDS_TO_BATCH,
+  ADD_INBOX_CARDS_TO_BATCH,
   CREATE_BATCH,
   DELETE_BATCH,
   EXIST_RECENT_NOTIFICATION,
+  GET_BATCH_CARD_COUNT,
   GET_BATCH_CARDS,
   GET_BATCH_CARDS_FOR_USER,
   MARK_BATCH_AS_NOTIFIED,
@@ -31,10 +33,20 @@ export class ReviewRepository extends Table {
     return this.insertItem<string>(query, 'id');
   }
 
-  async addCardsToBatch(batchId: string, userSub: string, limit: number): Promise<void> {
+  async addDueCardsToBatch(batchId: string, userSub: string, limit: number): Promise<void> {
     const query: Query = {
-      name: 'addCardsToBatch',
-      text: ADD_CARDS_TO_BATCH,
+      name: 'addDueCardsToBatch',
+      text: ADD_DUE_CARDS_TO_BATCH,
+      values: [batchId, userSub, limit],
+    };
+
+    await this.insertItem(query);
+  }
+
+  async addInboxCardsToBatch(batchId: string, userSub: string, limit: number): Promise<void> {
+    const query: Query = {
+      name: 'addInboxCardsToBatch',
+      text: ADD_INBOX_CARDS_TO_BATCH,
       values: [batchId, userSub, limit],
     };
 
@@ -82,6 +94,17 @@ export class ReviewRepository extends Table {
     };
 
     return this.getItems<{ card_sub: string }>(query);
+  }
+
+  async getBatchCardCount(batchId: string): Promise<number> {
+    const query: Query = {
+      name: 'getBatchCardCount',
+      text: GET_BATCH_CARD_COUNT,
+      values: [batchId],
+    };
+
+    const row = await this.getItem<{ card_count: number }>(query);
+    return row?.card_count ?? 0;
   }
 }
 

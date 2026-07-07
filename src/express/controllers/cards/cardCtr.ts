@@ -19,6 +19,7 @@ import * as updateCardBodyDtoSchema from './schemas/updateCardBodyDto.json';
 import * as updateDeskParamsDtoSchema from './schemas/updateDeskParamsDto.json';
 import { CARD_ORIENTATION, LanguageCode } from '../../../services/cards/card.const';
 import { StudyMode } from '../../../services/games/studyMode.const';
+import { ForbiddenError, NotFoundError, ConflictError } from '../../../exceptions';
 
 const validateCreateCardDto = ajv.compile(createCardDtoSchema);
 const validateCreateDeskDto = ajv.compile(createDeskDtoSchema);
@@ -113,6 +114,85 @@ export async function getDeskCardsCtr(req: Request, res: Response, next: NextFun
 
     const cards = await cardService.getCardsDesk({ sub: creatorSub, desk_sub: params.sub });
     res.json(cards);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function getPublicDeskCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateGetDeskInfoDto(params)) {
+      return next(
+        createError(422, 'Incorrect desk params', {
+          errors: validateGetDeskInfoDto.errors,
+        })
+      );
+    }
+
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const offset = req.query.offset ? Number(req.query.offset) : undefined;
+
+    if (
+      (req.query.limit !== undefined && Number.isNaN(limit)) ||
+      (req.query.offset !== undefined && Number.isNaN(offset))
+    ) {
+      return next(createError(422, 'Invalid pagination params'));
+    }
+
+    const desk = await cardService.getPublicDesk({
+      deskSub: params.sub,
+      viewerSub: res.locals.userSub as string | undefined,
+      limit,
+      offset,
+    });
+    res.json(desk);
+  } catch (e: unknown) {
+    if (e instanceof ForbiddenError) {
+      return next(createError(403, e.message));
+    }
+    if (e instanceof NotFoundError) {
+      return next(createError(404, e.message));
+    }
+    next(e);
+  }
+}
+
+export async function addDeskToLibraryCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateGetDeskInfoDto(params)) {
+      return next(
+        createError(422, 'Incorrect desk params', {
+          errors: validateGetDeskInfoDto.errors,
+        })
+      );
+    }
+
+    const userSub = res.locals.userSub as string;
+    const result = await cardService.addDeskToLibrary(userSub, params.sub);
+    res.status(201).json(result);
+  } catch (e: unknown) {
+    if (e instanceof ConflictError) {
+      return next(createError(409, e.message));
+    }
+    if (e instanceof ForbiddenError) {
+      return next(createError(403, e.message));
+    }
+    if (e instanceof NotFoundError) {
+      return next(createError(404, e.message));
+    }
+    next(e);
+  }
+}
+
+export async function getLibrarySourcesCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+    const sources = await cardService.getLibrarySources(userSub);
+    res.json(sources);
   } catch (e) {
     next(e);
   }
@@ -302,11 +382,11 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const { sub, title, description, isPublic, folder_sub, front_language, back_language, example_language } = req.body as {
+    const { sub, title, description, visibility, folder_sub, front_language, back_language, example_language } = req.body as {
       sub: string;
       title: string;
       description: string;
-      isPublic: boolean;
+      visibility: 'private' | 'public' | 'friends' | 'unlisted';
       folder_sub: string | null;
       front_language?: LanguageCode;
       back_language?: LanguageCode;
@@ -319,7 +399,7 @@ export async function createDeskCtr(req: Request, res: Response, next: NextFunct
       sub,
       title,
       description,
-      public: isPublic,
+      visibility,
       creatorSub,
       folderSub: folder_sub,
       frontLanguage: front_language,
@@ -338,6 +418,7 @@ export async function updateDeskCtr(req: Request, res: Response, next: NextFunct
     const body = {
       title: req.body.title as string,
       description: req.body.description as string,
+      visibility: req.body.visibility as 'private' | 'public' | 'friends' | 'unlisted' | undefined,
     };
 
     if (!validateUpdateDeskParamsDto(params)) {

@@ -12,6 +12,10 @@
       "type": "string",
       "minLength": 5,
       "maxLength": 300
+    },
+    "visibility": {
+      "type": "string",
+      "enum": ["private", "public", "friends", "unlisted"]
     }
   }
 }

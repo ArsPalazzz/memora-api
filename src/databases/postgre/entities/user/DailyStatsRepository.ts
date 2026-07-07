@@ -3,6 +3,7 @@ import { ExistDailyStatsByUserIdParams } from '../../../../services/users/user.i
 import Table from '../Table';
 import {
   EXIST_DAILY_STATS_BY_USER_ID,
+  GET_CARDS_REVIEWED_THIS_WEEK,
   GET_LAST_DAILY_STATS_BY_USER_ID,
 } from './DailyStatsRepositoryQueries';
 
@@ -65,6 +66,17 @@ export class DailyStatsRepository extends Table {
       daily_goal: number;
       goal_achieved: boolean;
     }>(query);
+  }
+
+  async getCardsReviewedThisWeek(userId: number): Promise<number> {
+    const query: Query = {
+      name: 'getCardsReviewedThisWeek',
+      text: GET_CARDS_REVIEWED_THIS_WEEK,
+      values: [userId],
+    };
+
+    const row = await this.getItem<{ cards_reviewed: number }>(query);
+    return row?.cards_reviewed ?? 0;
   }
 
   async create(params: {

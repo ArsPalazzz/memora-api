@@ -4,6 +4,14 @@ import reviewRepository, {
 import notificationService, { NotificationService } from '../notifications/NotificationService';
 import fcmService, { FCMService } from '../notifications/FMCService';
 import cardService, { CardService } from '../cards/CardService';
+import { BadRequestError } from '../../exceptions';
+
+type ReviewBatchResult = {
+  batchId: string;
+  cardCount: number;
+  dueCount: number;
+  inboxCount: number;
+};
 
 export class ReviewService {
   constructor(
@@ -12,6 +20,21 @@ export class ReviewService {
     private readonly cardService: CardService,
     private readonly fcmService: FCMService
   ) {}
+
+  async getReviewSummary(userSub: string) {
+    return this.cardService.getReviewDueSummary(userSub);
+  }
+
+  async startReview(userSub: string): Promise<ReviewBatchResult> {
+    const batch = await this.createReviewBatch(userSub, { includeInbox: true });
+    if (!batch) {
+      throw new BadRequestError('No cards to study');
+    }
+
+    await this.reviewRepository.markBatchAsNotified(batch.batchId);
+
+    return batch;
+  }
 
   async notifyUser(userSub: string, dueCount: number): Promise<void> {
     let batchId: string | null = null;
@@ -29,18 +52,13 @@ export class ReviewService {
         return;
       }
 
-      batchId = await this.reviewRepository.createBatch(userSub);
-      if (!batchId) {
-        throw new Error(`Cannot create batch`);
+      const batch = await this.createReviewBatch(userSub, { includeInbox: false });
+      if (!batch) {
+        console.log(`📭 No due cards in batch for user ${userSub}, skipping push`);
+        return;
       }
 
-      const reviewSettings = await this.cardService.getReviewSettingsByUserSub(userSub);
-
-      await this.reviewRepository.addCardsToBatch(
-        batchId,
-        userSub,
-        reviewSettings.cards_per_session
-      );
+      batchId = batch.batchId;
 
       const message = {
         title: `${dueCount} words waiting to review`,
@@ -106,6 +124,39 @@ export class ReviewService {
 
   async getBatchCardsForUser(batchId: string, userSub: string) {
     return await this.reviewRepository.getBatchCardsForUser(batchId, userSub);
+  }
+
+  private async createReviewBatch(
+    userSub: string,
+    options: { includeInbox: boolean }
+  ): Promise<ReviewBatchResult | null> {
+    const reviewSettings = await this.cardService.getReviewSettingsByUserSub(userSub);
+    const sessionLimit = reviewSettings.cards_per_session;
+
+    const batchId = await this.reviewRepository.createBatch(userSub);
+    if (!batchId) {
+      throw new Error('Cannot create batch');
+    }
+
+    await this.reviewRepository.addDueCardsToBatch(batchId, userSub, sessionLimit);
+    const dueCount = await this.reviewRepository.getBatchCardCount(batchId);
+
+    let inboxCount = 0;
+    if (options.includeInbox) {
+      const remainingLimit = sessionLimit - dueCount;
+      if (remainingLimit > 0) {
+        await this.reviewRepository.addInboxCardsToBatch(batchId, userSub, remainingLimit);
+      }
+      inboxCount = (await this.reviewRepository.getBatchCardCount(batchId)) - dueCount;
+    }
+
+    const cardCount = dueCount + inboxCount;
+    if (cardCount === 0) {
+      await this.reviewRepository.deleteUnnotifiedBatch(batchId);
+      return null;
+    }
+
+    return { batchId, cardCount, dueCount, inboxCount };
   }
 }
 

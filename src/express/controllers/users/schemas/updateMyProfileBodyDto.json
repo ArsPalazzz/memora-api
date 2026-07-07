@@ -1,0 +1,13 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "minProperties": 1,
+  "properties": {
+    "stats_public": {
+      "type": "boolean"
+    },
+    "league_notifications": {
+      "type": "boolean"
+    }
+  }
+}

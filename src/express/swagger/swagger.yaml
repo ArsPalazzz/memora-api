@@ -13,6 +13,8 @@ tags:
     description: Auth domain
   - name: User
     description: User domain
+  - name: Review
+    description: Review domain
   - name: Card
     description: Card domain
   - name: HealthCheck
@@ -175,6 +177,158 @@ paths:
                     type: string
                     description: Connection status
                     example: completed
+
+  /users/review-summary:
+    get:
+      tags:
+        - User
+      summary: Returns due review summary for the current user
+      operationId: getReviewSummaryCtr
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Review due summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalDueCount:
+                    type: integer
+                    example: 12
+                  desks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        deskSub:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        dueCount:
+                          type: integer
+
+  /users/inbox-summary:
+    get:
+      tags:
+        - User
+      summary: Returns inbox summary for the current user
+      operationId: getInboxSummaryCtr
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Inbox summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  count:
+                    type: integer
+                    example: 5
+                  deskSub:
+                    type: string
+                    format: uuid
+
+  /users/{nickname}/public:
+    get:
+      tags:
+        - User
+      summary: Returns a public user profile
+      operationId: getPublicProfileCtr
+      parameters:
+        - name: nickname
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^[a-z0-9_]{3,50}$'
+      responses:
+        '200':
+          description: Public profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nickname:
+                    type: string
+                  memberSince:
+                    type: string
+                    format: date-time
+                  desks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sub:
+                          type: string
+                          format: uuid
+                        title:
+                          type: string
+                        cardCount:
+                          type: integer
+                        totalSaves:
+                          type: integer
+        '404':
+          description: User not found
+        '422':
+          description: Invalid nickname
+
+  /reviews/start:
+    post:
+      tags:
+        - Review
+      summary: Creates a unified study batch (due + inbox) without push notification
+      operationId: startReviewCtr
+      security:
+        - userLoginBearerAuth: []
+      responses:
+        '200':
+          description: Review batch created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  batchId:
+                    type: string
+                    format: uuid
+                  cardCount:
+                    type: integer
+                  dueCount:
+                    type: integer
+                  inboxCount:
+                    type: integer
+        '400':
+          description: No cards to study
+
+  /games/add-to-inbox:
+    post:
+      tags:
+        - Review
+      summary: Saves a feed card to the user inbox desk
+      operationId: addCardToInboxCtr
+      security:
+        - userLoginBearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - cardSub
+              properties:
+                cardSub:
+                  type: string
+                  format: uuid
+      responses:
+        '204':
+          description: Card saved to inbox
 
   /cards:
     get:

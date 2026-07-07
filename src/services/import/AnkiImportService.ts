@@ -422,7 +422,7 @@ export class AnkiImportService {
       sub: deskSub,
       title,
       description: folderPath.length ? `Imported from Anki (${folderPath.join(' › ')})` : 'Imported from Anki',
-      public: false,
+      visibility: 'private',
       creatorSub: userSub,
       folderSub,
       frontLanguage: languageSettings.front_language,

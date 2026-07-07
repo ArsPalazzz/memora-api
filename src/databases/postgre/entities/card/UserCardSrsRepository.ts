@@ -1,6 +1,8 @@
 import Table from '../Table';
 import { Query } from '../../index';
 import {
+  GET_DUE_COUNT_BY_DESK,
+  GET_DUE_COUNT_FOR_USER,
   GET_USER_CARD_SRS,
   GET_USERS_WITH_DUE_CARDS,
   UPSERT_USER_CARDS_SRS,
@@ -83,6 +85,29 @@ export class UserCardSrsRepository extends Table {
     };
 
     return this.getItems<{ user_sub: string; due_count: number }>(query);
+  }
+
+  async getDueCountForUser(userSub: string): Promise<number> {
+    const query: Query = {
+      name: 'getDueCountForUser',
+      text: GET_DUE_COUNT_FOR_USER,
+      values: [userSub],
+    };
+
+    const row = await this.getItem<{ due_count: number }>(query);
+    return row?.due_count ?? 0;
+  }
+
+  async getDueCountByDesk(
+    userSub: string
+  ): Promise<Array<{ desk_sub: string; title: string; due_count: number }>> {
+    const query: Query = {
+      name: 'getDueCountByDesk',
+      text: GET_DUE_COUNT_BY_DESK,
+      values: [userSub],
+    };
+
+    return this.getItems<{ desk_sub: string; title: string; due_count: number }>(query);
   }
 }
 

@@ -36,3 +36,31 @@ export const GET_USERS_WITH_DUE_CARDS = `
         GROUP BY ucs.user_sub
         HAVING COUNT(*) >= 5
 `;
+
+export const GET_DUE_COUNT_FOR_USER = `
+  SELECT COUNT(*)::int AS due_count
+  FROM cards.user_card_srs ucs
+  INNER JOIN cards.card c ON c.sub = ucs.card_sub
+  INNER JOIN cards.desk d ON d.sub = c.desk_sub
+  WHERE ucs.user_sub = $1
+    AND ucs.next_review <= NOW()
+    AND d.status = 'active'
+    AND d.creator_sub = $1
+`;
+
+export const GET_DUE_COUNT_BY_DESK = `
+  SELECT
+    d.sub AS desk_sub,
+    d.title,
+    COUNT(*)::int AS due_count
+  FROM cards.user_card_srs ucs
+  INNER JOIN cards.card c ON c.sub = ucs.card_sub
+  INNER JOIN cards.desk d ON d.sub = c.desk_sub
+  WHERE ucs.user_sub = $1
+    AND ucs.next_review <= NOW()
+    AND d.status = 'active'
+    AND d.creator_sub = $1
+  GROUP BY d.sub, d.title
+  HAVING COUNT(*) > 0
+  ORDER BY due_count DESC, d.title ASC
+`;

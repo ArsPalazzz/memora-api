@@ -24,6 +24,8 @@ export interface GetProfileBySubRes {
   nickname: string;
   email: string;
   created_at: string;
+  stats_public: boolean;
+  league_notifications: boolean;
 }
 
 export interface GetProfileIdBySubRes {

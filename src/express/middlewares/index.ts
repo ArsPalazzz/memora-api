@@ -26,3 +26,25 @@ export async function tokenValidator(
     next(createError(401, 'Authentication required'));
   }
 }
+
+export async function optionalTokenValidator(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  const { authorization = '' } = req.headers;
+  const [, token] = authorization.split(' ');
+
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const tokenPayload = await authProvider.validateToken(token);
+    res.locals.userSub = tokenPayload.sub;
+    res.locals.userRole = tokenPayload.role;
+    next();
+  } catch {
+    next();
+  }
+}

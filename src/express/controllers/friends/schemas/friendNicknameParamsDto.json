@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "required": ["nickname"],
+  "additionalProperties": false,
+  "properties": {
+    "nickname": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 50
+    }
+  }
+}

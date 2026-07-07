@@ -42,6 +42,7 @@ candidate_cards AS (
     c.global_answer_count,
     c.desk_sub,
     d.title as desk_title,
+    p.nickname as creator_nickname,
     ds.front_language,
     ds.back_language,
     CASE
@@ -62,8 +63,9 @@ candidate_cards AS (
   FROM cards.card c
   INNER JOIN cards.desk d
     ON d.sub = c.desk_sub
-    AND d.public = true
+    AND d.visibility = 'public'
     AND d.creator_sub != $1
+  INNER JOIN users.profile p ON p.sub = d.creator_sub
   INNER JOIN cards.desk_settings ds ON ds.desk_sub = c.desk_sub
   LEFT JOIN current_session_cards csc ON csc.card_sub = c.sub
   LEFT JOIN user_copied_original_ids uco ON uco.original_id = c.id
@@ -139,6 +141,7 @@ SELECT
   sc.global_answer_count,
   sc.desk_sub,
   sc.desk_title,
+  sc.creator_nickname,
   sc.front_language,
   sc.back_language,
   COALESCE(ce.examples, ARRAY[]::text[]) as examples,
@@ -169,6 +172,7 @@ ORDER BY sc.final_score DESC
       global_answer_count: number;
       desk_sub: string;
       desk_title: string;
+      creator_nickname: string | null;
       front_language: string;
       back_language: string;
       examples: string[];

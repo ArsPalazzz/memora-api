@@ -158,6 +158,36 @@ export class UserService {
     return true;
   }
 
+  async updateStatsPublic(sub: string, statsPublic: boolean) {
+    await this.getProfile({ sub });
+    await this.userRepository.updateStatsPublic(sub, statsPublic);
+  }
+
+  async updateMyProfile(
+    sub: string,
+    updates: { stats_public?: boolean; league_notifications?: boolean }
+  ) {
+    await this.getProfile({ sub });
+
+    if (updates.stats_public !== undefined) {
+      await this.userRepository.updateStatsPublic(sub, updates.stats_public);
+    }
+
+    if (updates.league_notifications !== undefined) {
+      await this.userRepository.updateLeagueNotifications(sub, updates.league_notifications);
+    }
+  }
+
+  async getPublicActivityStats(userSub: string) {
+    const profileId = await this.getProfileId(userSub);
+    const streak = await this.streakStatsRepository.getByUserId(profileId);
+
+    return {
+      currentStreak: streak?.current_streak ?? 0,
+      cardsReviewedThisWeek: await this.dailyStatsRepository.getCardsReviewedThisWeek(profileId),
+    };
+  }
+
   private generateUserInfo() {
     const sub = uuidv4();
     const nickname = uniqueNamesGenerator({ dictionaries: [adjectives, colors, animals] });

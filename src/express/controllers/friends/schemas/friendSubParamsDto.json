@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["friendSub"],
+  "additionalProperties": false,
+  "properties": {
+    "friendSub": {
+      "type": "string",
+      "format": "uuid"
+    }
+  }
+}

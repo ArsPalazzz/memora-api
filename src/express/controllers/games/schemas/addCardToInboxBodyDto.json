@@ -1,0 +1,11 @@
+{
+  "type": "object",
+  "required": ["cardSub"],
+  "additionalProperties": false,
+  "properties": {
+    "cardSub": {
+      "format": "uuid",
+      "type": "string"
+    }
+  }
+}

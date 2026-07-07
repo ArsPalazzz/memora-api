@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["sub", "title", "description", "isPublic", "folder_sub"],
+  "required": ["sub", "title", "description", "visibility", "folder_sub"],
   "additionalProperties": false,
   "properties": {
     "sub": {
@@ -15,8 +15,9 @@
       "type": "string",
       "minLength": 1
     },
-    "isPublic": {
-      "type": "boolean"
+    "visibility": {
+      "type": "string",
+      "enum": ["private", "public", "friends", "unlisted"]
     },
     "folder_sub": {
       "oneOf": [

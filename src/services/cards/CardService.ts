@@ -8,9 +8,9 @@ import userCardSrsRepository, {
   UserCardSrsRepository,
 } from '../../databases/postgre/entities/card/UserCardSrsRepository';
 import { PgTransaction } from '../../databases/postgre/entities/Table';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
-import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, LANGUAGE_NAMES, LanguageCode } from './card.const';
-import { StudyMode } from '../games/studyMode.const';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../exceptions';
+import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, DESK_VISIBILITY, DeskVisibility, INBOX_DESK_DESCRIPTION, INBOX_DESK_TITLE, canAddDeskToLibrary, canViewDeskVisibility, LANGUAGE_NAMES, LanguageCode, visibilityToLegacyPublic } from './card.const';
+import { StudyMode, DEFAULT_DESK_STUDY_MODE } from '../games/studyMode.const';
 import { Folder, FolderTree, GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
 import { GoogleGenAI } from '@google/genai';
@@ -36,6 +36,12 @@ import feedSettingsRepository, {
 import reviewSettingsRepository, {
   ReviewSettingsRepository,
 } from '../../databases/postgre/entities/card/ReviewSettingsRepository';
+import deskLibraryRepository, {
+  DeskLibraryRepository,
+} from '../../databases/postgre/entities/card/DeskLibraryRepository';
+import friendshipRepository, {
+  FriendshipRepository,
+} from '../../databases/postgre/entities/user/FriendshipRepository';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -50,7 +56,9 @@ export class CardService {
     private readonly gameSessionRepository: GameSessionRepository,
     private readonly userCardPreferencesRepository: UserCardPreferencesRepository,
     private readonly cardDiscoveryRepository: CardDiscoveryRepository,
-    private readonly cardPreferenceRepository: CardPreferenceRepository
+    private readonly cardPreferenceRepository: CardPreferenceRepository,
+    private readonly deskLibraryRepository: DeskLibraryRepository,
+    private readonly friendshipRepository: FriendshipRepository
   ) {}
 
   async getAllCards(): Promise<any> {
@@ -162,33 +170,193 @@ export class CardService {
       throw new NotFoundError('Card not found');
     }
 
+    const cardDetails = await this.cardRepository.getCard(cardSub);
+    await this.cloneCardWithExamples(
+      originalCard,
+      targetDeskSub,
+      cardDetails?.examples ?? []
+    );
+  }
+
+  async cloneCardToDesks(originalCard: { id: number; sub: string; front_variants: string[]; back_variants: string[]; image_uuid?: string | null }, deskSubs: string[]) {
+    if (deskSubs.length === 0) return;
+
+    const cardDetails = await this.cardRepository.getCard(originalCard.sub);
+    const examples = cardDetails?.examples ?? [];
+
+    await Promise.all(
+      deskSubs.map((deskSub) => this.cloneCardWithExamples(originalCard, deskSub, examples))
+    );
+  }
+
+  async addDeskToLibrary(userSub: string, sourceDeskSub: string) {
+    if (await this.deskLibraryRepository.existsByUserAndSource(userSub, sourceDeskSub)) {
+      throw new ConflictError('Desk already in library');
+    }
+
+    const sourceMeta = await this.cardRepository.getDeskPublicMeta(sourceDeskSub);
+    if (!sourceMeta) {
+      throw new NotFoundError('Desk not found');
+    }
+
+    if (sourceMeta.creator_sub === userSub) {
+      throw new ForbiddenError('Cannot add your own desk to library');
+    }
+
+    if (sourceMeta.status !== 'active' || sourceMeta.is_inbox) {
+      throw new ForbiddenError('Desk is not available');
+    }
+
+    const isFriend = await this.friendshipRepository.areAcceptedFriends(
+      userSub,
+      sourceMeta.creator_sub
+    );
+
+    if (!canAddDeskToLibrary(sourceMeta.visibility, { isFriend })) {
+      throw new ForbiddenError('Desk is not shared with you');
+    }
+
+    const title = `${sourceMeta.title} (from @${sourceMeta.creator_nickname})`;
+    await this.assertDeskTitleAvailable({
+      title,
+      creatorSub: userSub,
+      folderSub: null,
+    });
+
+    const [sourceSettings, sourceCards] = await Promise.all([
+      this.deskSettingsRepository.getByDeskSub(sourceDeskSub),
+      this.cardRepository.getDeskCardsForLibraryClone(sourceDeskSub),
+    ]);
+
+    const localDeskSub = uuidV4();
+    const libraryEntrySub = uuidV4();
+    const tx = await this.cardRepository.startTransaction();
+
+    try {
+      await this.cardRepository.insertDeskInTx(tx, {
+        sub: localDeskSub,
+        title,
+        description: sourceMeta.description ?? '',
+        visibility: DESK_VISIBILITY.PRIVATE,
+        creatorSub: userSub,
+      });
+
+      await this.cardRepository.insertDeskSettingsCopyInTx(tx, {
+        deskSub: localDeskSub,
+        cardsPerSession: sourceSettings?.cards_per_session ?? 10,
+        cardOrientation: sourceSettings?.card_orientation ?? CARD_ORIENTATION.NORMAL,
+        frontLanguage: sourceSettings?.front_language ?? DEFAULT_FRONT_LANGUAGE,
+        backLanguage: sourceSettings?.back_language ?? DEFAULT_BACK_LANGUAGE,
+        exampleLanguage: sourceSettings?.example_language ?? DEFAULT_EXAMPLE_LANGUAGE,
+        studyMode: sourceSettings?.study_mode ?? DEFAULT_DESK_STUDY_MODE,
+      });
+
+      for (const card of sourceCards) {
+        const newCardSub = uuidV4();
+        await this.cardRepository.createCardCloneTx(tx, {
+          sub: newCardSub,
+          deskSub: localDeskSub,
+          frontVariants: card.front_variants,
+          backVariants: card.back_variants,
+          imageUuid: card.image_uuid ?? undefined,
+          copyOf: card.id,
+        });
+
+        if (card.examples.length > 0) {
+          await this.cardExampleRepository.createManyTx(tx, {
+            cardSub: newCardSub,
+            sentences: card.examples,
+          });
+        }
+      }
+
+      await this.deskLibraryRepository.insertInTx(tx, {
+        sub: libraryEntrySub,
+        userSub,
+        sourceDeskSub,
+        localDeskSub,
+        sourceCreatorSub: sourceMeta.creator_sub,
+      });
+
+      await tx.commit();
+    } catch (error: unknown) {
+      await tx.rollback();
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        (error as { code: string }).code === '23505'
+      ) {
+        throw new ConflictError('Desk already in library');
+      }
+      throw error;
+    }
+
+    return {
+      sub: libraryEntrySub,
+      localDeskSub,
+      sourceDeskSub,
+      title,
+      cardCount: sourceCards.length,
+    };
+  }
+
+  async getLibrarySources(userSub: string) {
+    const rows = await this.deskLibraryRepository.getSourcesByUserSub(userSub);
+
+    return rows.map((row) => ({
+      sub: row.sub,
+      sourceDeskSub: row.source_desk_sub,
+      localDeskSub: row.local_desk_sub,
+      sourceCreatorSub: row.source_creator_sub,
+      sourceCreatorNickname: row.source_creator_nickname,
+      sourceDeskTitle: row.source_desk_title,
+      localDeskTitle: row.local_desk_title,
+      mode: row.mode,
+      createdAt: row.created_at,
+    }));
+  }
+
+  private async cloneCardWithExamples(
+    originalCard: {
+      id: number;
+      front_variants: string[];
+      back_variants: string[];
+      image_uuid?: string | null;
+    },
+    targetDeskSub: string,
+    examples: string[],
+    tx?: PgTransaction
+  ): Promise<string> {
     const newCardSub = uuidV4();
-    await this.cardRepository.create({
+    const cloneParams = {
       sub: newCardSub,
       deskSub: targetDeskSub,
       frontVariants: originalCard.front_variants,
       backVariants: originalCard.back_variants,
-      imageUuid: originalCard.image_uuid,
-    });
+      imageUuid: originalCard.image_uuid ?? undefined,
+      copyOf: originalCard.id,
+    };
+
+    if (tx) {
+      await this.cardRepository.createCardCloneTx(tx, cloneParams);
+      if (examples.length > 0) {
+        await this.cardExampleRepository.createManyTx(tx, {
+          cardSub: newCardSub,
+          sentences: examples,
+        });
+      }
+    } else {
+      await this.cardRepository.createCardClone(cloneParams);
+      if (examples.length > 0) {
+        await this.cardExampleRepository.createMany({
+          cardSub: newCardSub,
+          sentences: examples,
+        });
+      }
+    }
 
     return newCardSub;
-  }
-
-  async cloneCardToDesks(originalCard: any, deskSubs: string[]) {
-    if (deskSubs.length === 0) return;
-
-    const insertPromises = deskSubs.map((deskSub) =>
-      this.cardRepository.createCardClone({
-        sub: uuidV4(),
-        deskSub,
-        frontVariants: originalCard.front_variants,
-        backVariants: originalCard.back_variants,
-        imageUuid: originalCard.image_uuid,
-        copyOf: originalCard.id,
-      })
-    );
-
-    await Promise.all(insertPromises);
   }
 
   async isDeskOwner(userSub: string, deskSub: string) {
@@ -259,6 +427,48 @@ export class CardService {
     await this.reviewSettingsRepository.create(userSub);
   }
 
+  async createInboxDesk(userSub: string): Promise<string> {
+    const existingInboxSub = await this.cardRepository.getInboxDeskSub(userSub);
+    if (existingInboxSub) {
+      return existingInboxSub;
+    }
+
+    const sub = uuidV4();
+
+    await this.cardRepository.createDesk({
+      sub,
+      title: INBOX_DESK_TITLE,
+      description: INBOX_DESK_DESCRIPTION,
+      visibility: DESK_VISIBILITY.PRIVATE,
+      creatorSub: userSub,
+      isInbox: true,
+      frontLanguage: DEFAULT_FRONT_LANGUAGE,
+      backLanguage: DEFAULT_BACK_LANGUAGE,
+      exampleLanguage: DEFAULT_EXAMPLE_LANGUAGE,
+    });
+
+    return sub;
+  }
+
+  async ensureInboxDesk(userSub: string): Promise<string> {
+    const inboxDeskSub = await this.cardRepository.getInboxDeskSub(userSub);
+    if (inboxDeskSub) {
+      return inboxDeskSub;
+    }
+
+    return this.createInboxDesk(userSub);
+  }
+
+  async getInboxSummary(userSub: string) {
+    const inboxDeskSub = await this.ensureInboxDesk(userSub);
+    const count = await this.cardRepository.getInboxNewCardCount(userSub);
+
+    return {
+      count,
+      deskSub: inboxDeskSub,
+    };
+  }
+
   async getDeskSettings(deskSub: string) {
     return await this.deskSettingsRepository.getByDeskSub(deskSub);
   }
@@ -277,6 +487,7 @@ export class CardService {
       sub: string;
       title: string;
       description: string;
+      sourceCreatorNickname?: string;
     }[]
   > {
     return await this.cardRepository.getDesksByCreatorSub(userSub);
@@ -342,6 +553,53 @@ export class CardService {
     }
 
     return await this.cardRepository.getDeskCards({ deskSub: desk_sub });
+  }
+
+  async getPublicDesk(params: { deskSub: string; viewerSub?: string; limit?: number; offset?: number }) {
+    const limit = Math.min(Math.max(params.limit ?? 50, 1), 100);
+    const offset = Math.max(params.offset ?? 0, 0);
+
+    const meta = await this.cardRepository.getDeskPublicMeta(params.deskSub);
+    if (!meta) {
+      throw new NotFoundError('Desk not found');
+    }
+
+    if (meta.status !== 'active' || meta.is_inbox) {
+      throw new ForbiddenError('Desk is not available');
+    }
+
+    const isOwner = params.viewerSub === meta.creator_sub;
+    const isFriend =
+      params.viewerSub && !isOwner
+        ? await this.friendshipRepository.areAcceptedFriends(params.viewerSub, meta.creator_sub)
+        : false;
+
+    if (!canViewDeskVisibility(meta.visibility, { isOwner, isFriend })) {
+      throw new ForbiddenError('Desk is not available');
+    }
+
+    const cards = await this.cardRepository.getPublicDeskCardPreviews({
+      deskSub: params.deskSub,
+      limit,
+      offset,
+    });
+
+    return {
+      sub: meta.sub,
+      title: meta.title,
+      description: meta.description ?? '',
+      creatorNickname: meta.creator_nickname,
+      cardCount: meta.card_count,
+      cards: cards.map((card) => ({
+        sub: card.sub,
+        frontVariants: card.front_variants,
+      })),
+      pagination: {
+        limit,
+        offset,
+        hasMore: offset + cards.length < meta.card_count,
+      },
+    };
   }
 
   async createCard(payload: { front: string[]; back: string[]; desk_sub: string }) {
@@ -416,14 +674,14 @@ export class CardService {
     sub: string;
     title: string;
     description: string;
-    public: boolean;
+    visibility: DeskVisibility;
     creatorSub: string;
     folderSub: string | null;
     frontLanguage?: LanguageCode;
     backLanguage?: LanguageCode;
     exampleLanguage?: LanguageCode;
   }) {
-    const { folderSub, frontLanguage, backLanguage, exampleLanguage, ...rest } = payload;
+    const { folderSub, frontLanguage, backLanguage, exampleLanguage, visibility, ...rest } = payload;
 
     if (folderSub) {
       const exist = await this.cardRepository.existFolderBySub(folderSub);
@@ -440,6 +698,7 @@ export class CardService {
 
     const created_at = await this.cardRepository.createDesk({
       ...rest,
+      visibility,
       frontLanguage,
       backLanguage,
       exampleLanguage,
@@ -453,7 +712,8 @@ export class CardService {
       sub: payload.sub,
       title: payload.title,
       description: payload.description,
-      public: payload.public,
+      visibility,
+      public: visibilityToLegacyPublic(visibility),
       created_at,
     };
   }
@@ -665,7 +925,7 @@ export class CardService {
 
   async updateDesk(payload: {
     deskSub: string;
-    body: { title: string; description: string };
+    body: { title: string; description: string; visibility?: DeskVisibility };
     creatorSub: string;
   }) {
     const { deskSub, body, creatorSub } = payload;
@@ -799,6 +1059,22 @@ export class CardService {
 
   async getUsersWithDueCards() {
     return await this.userCardSrsRepository.getUsersWithDueCards();
+  }
+
+  async getReviewDueSummary(userSub: string) {
+    const [totalDueCount, desks] = await Promise.all([
+      this.userCardSrsRepository.getDueCountForUser(userSub),
+      this.userCardSrsRepository.getDueCountByDesk(userSub),
+    ]);
+
+    return {
+      totalDueCount,
+      desks: desks.map((desk) => ({
+        deskSub: desk.desk_sub,
+        title: desk.title,
+        dueCount: desk.due_count,
+      })),
+    };
   }
 
   async archiveDesk(payload: { deskSub: string; creatorSub: string }) {
@@ -1156,5 +1432,7 @@ export default new CardService(
   gameSessionRepository,
   userCardPreferencesRepository,
   cardDiscoveryRepository,
-  cardPreferenceRepository
+  cardPreferenceRepository,
+  deskLibraryRepository,
+  friendshipRepository
 );

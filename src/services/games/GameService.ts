@@ -312,6 +312,8 @@ export class GameService {
           imageUuid: c.image_uuid,
           deskTitle: c.desk_title,
           deskSub: c.desk_sub,
+          creatorNickname: c.creator_nickname ?? 'Anonymous',
+          saveCount: c.global_like_count,
           globalStats: {
             shown: c.global_shown_count,
             liked: c.global_like_count,
@@ -404,6 +406,22 @@ export class GameService {
     if (desksToAdd.length > 0) {
       await this.cardService.cloneCardToDesks(originalCard, desksToAdd);
     }
+  }
+
+  async addCardToInbox(userSub: string, cardSub: string) {
+    const inboxDeskSub = await this.cardService.ensureInboxDesk(userSub);
+
+    const originalCard = await this.cardService.getCardBySub(cardSub);
+    if (!originalCard) {
+      throw new NotFoundError('Card not found');
+    }
+
+    const currentDesksWithCard = await this.cardService.getDesksWithCard(originalCard.id);
+    if (currentDesksWithCard.includes(inboxDeskSub)) {
+      return;
+    }
+
+    await this.cardService.cloneCardToDesks(originalCard, [inboxDeskSub]);
   }
 
   private async resolveHandler(sessionId: string) {

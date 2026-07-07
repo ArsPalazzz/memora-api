@@ -10,6 +10,7 @@ import * as getNextCardBodyDtoSchema from './schemas/getNextCardBodyDto.json';
 import * as revealInGameSessionBodyDtoSchema from './schemas/revealInGameSessionBodyDto.json';
 import * as matchSessionParamsDtoSchema from './schemas/matchSessionParamsDto.json';
 import * as matchSubmitBodyDtoSchema from './schemas/matchSubmitBodyDto.json';
+import * as addCardToInboxBodyDtoSchema from './schemas/addCardToInboxBodyDto.json';
 import { ajv } from '../../../utils';
 import gameService from '../../../services/games/GameService';
 
@@ -22,6 +23,7 @@ const validateGetNextCardBodyDto = ajv.compile(getNextCardBodyDtoSchema);
 const validateRevealInGameSessionBodyDto = ajv.compile(revealInGameSessionBodyDtoSchema);
 const validateMatchSessionParamsDto = ajv.compile(matchSessionParamsDtoSchema);
 const validateMatchSubmitBodyDto = ajv.compile(matchSubmitBodyDtoSchema);
+const validateAddCardToInboxBodyDto = ajv.compile(addCardToInboxBodyDtoSchema);
 
 export async function startDeskSessionCtr(req: Request, res: Response, next: NextFunction) {
   try {
@@ -425,6 +427,27 @@ export async function addCardToDeskCtr(req: Request, res: Response, next: NextFu
     const { cardSub, deskSubs } = req.body as { cardSub: string; deskSubs: string[] };
 
     await gameService.addCardToDesk(userSub, cardSub, deskSubs);
+    res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function addCardToInboxCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    if (!validateAddCardToInboxBodyDto(req.body)) {
+      return next(
+        createError(422, 'Incorrect add card to inbox body', {
+          errors: validateAddCardToInboxBodyDto.errors,
+        })
+      );
+    }
+
+    const { cardSub } = req.body as { cardSub: string };
+
+    await gameService.addCardToInbox(userSub, cardSub);
     res.sendStatus(204);
   } catch (e) {
     next(e);
