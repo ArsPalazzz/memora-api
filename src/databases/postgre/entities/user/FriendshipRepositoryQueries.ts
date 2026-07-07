@@ -100,6 +100,7 @@ export const GET_FRIENDS_ACTIVITY = `
       (f.requester_sub = $1 AND p_addressee.stats_public = true)
       OR (f.addressee_sub = $1 AND p_requester.stats_public = true)
     )
+    AND COALESCE(ds.cards_reviewed, 0) > 0
   ORDER BY
     COALESCE(ds.goal_achieved, false) DESC,
     COALESCE(ds.cards_reviewed, 0) DESC,
