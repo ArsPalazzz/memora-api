@@ -5,12 +5,10 @@ import { port, serviceName, postgresOptions } from './config';
 import NotificationScheduler from './schedule/NotificationScheduler';
 import StreakScheduler from './schedule/StreakScheduler';
 import LeagueNotificationScheduler from './schedule/LeagueNotificationScheduler';
-import ChallengeNotificationScheduler from './schedule/ChallengeNotificationScheduler';
 
 let notificationScheduler: NotificationScheduler | null = null;
 let streakScheduler: StreakScheduler | null = null;
 let leagueNotificationScheduler: LeagueNotificationScheduler | null = null;
-let challengeNotificationScheduler: ChallengeNotificationScheduler | null = null;
 
 const shutdown = async () => {
   logger.info(`⚠️ Gracefully shutting down`);
@@ -37,14 +35,6 @@ const shutdown = async () => {
       logger.info('🛑 League notification scheduler stopped');
     } catch (error) {
       logger.error('❌ Error stopping league notification scheduler:', error);
-    }
-  }
-  if (challengeNotificationScheduler) {
-    try {
-      await challengeNotificationScheduler.stop();
-      logger.info('🛑 Challenge notification scheduler stopped');
-    } catch (error) {
-      logger.error('❌ Error stopping challenge notification scheduler:', error);
     }
   }
 
@@ -81,11 +71,6 @@ const startServer = async () => {
       leagueNotificationScheduler = new LeagueNotificationScheduler(logger);
     } catch (error) {
       logger.error('Failed to start league notification scheduler:', error);
-    }
-    try {
-      challengeNotificationScheduler = new ChallengeNotificationScheduler(logger);
-    } catch (error) {
-      logger.error('Failed to start challenge notification scheduler:', error);
     }
   } catch (err) {
     logger.error('Failed to connect to Postgres:', err);

@@ -19,7 +19,6 @@ import { notifications } from './routers/notifications';
 import { importRouter } from './routers/import';
 import { reviews } from './routers/reviews';
 import { friends } from './routers/friends';
-import { challenges } from './routers/challenges';
 
 export const app = express();
 export const httpServer = http.createServer(app);
@@ -49,7 +48,6 @@ app.use(auth);
 // Routing
 app.use(users);
 app.use(friends);
-app.use(challenges);
 app.use(cards);
 app.use(games);
 app.use(reviews);
