@@ -33,6 +33,15 @@ export const DELETE_PENDING_FRIENDSHIP = `
     AND status = 'pending';
 `;
 
+export const GET_INCOMING_FRIEND_REQUESTS = `
+  SELECT p_requester.sub, p_requester.nickname
+  FROM users.friendship f
+  INNER JOIN users.profile p_requester ON p_requester.sub = f.requester_sub
+  WHERE f.addressee_sub = $1
+    AND f.status = 'pending'
+  ORDER BY f.created_at DESC;
+`;
+
 export const GET_ACCEPTED_FRIENDS = `
   SELECT
     CASE

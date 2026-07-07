@@ -84,6 +84,20 @@ export async function declineFriendRequestCtr(req: Request, res: Response, next:
   }
 }
 
+export async function listIncomingFriendRequestsCtr(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  try {
+    const userSub = res.locals.userSub as string;
+    const requests = await friendshipService.listIncomingRequests(userSub);
+    res.json(requests);
+  } catch (e: unknown) {
+    next(e);
+  }
+}
+
 export async function listFriendsCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const userSub = res.locals.userSub as string;

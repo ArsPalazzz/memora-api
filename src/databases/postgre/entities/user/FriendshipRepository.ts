@@ -7,6 +7,7 @@ import {
   GET_ACCEPTED_FRIENDS,
   GET_FRIENDS_ACTIVITY,
   GET_FRIENDSHIP_BETWEEN,
+  GET_INCOMING_FRIEND_REQUESTS,
   GET_WEEKLY_LEAGUE,
   INSERT_FRIENDSHIP,
   ARE_ACCEPTED_FRIENDS,
@@ -67,6 +68,16 @@ export class FriendshipRepository extends Table {
     };
 
     return (await this.updateItems(query)) > 0;
+  }
+
+  async getIncomingRequests(userSub: string) {
+    const query: Query = {
+      name: 'getIncomingFriendRequests',
+      text: GET_INCOMING_FRIEND_REQUESTS,
+      values: [userSub],
+    };
+
+    return this.getItems<{ sub: string; nickname: string }>(query);
   }
 
   async getAcceptedFriends(userSub: string) {

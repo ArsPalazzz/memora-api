@@ -92,6 +92,14 @@ export class FriendshipService {
     return { removed: true };
   }
 
+  async listIncomingRequests(userSub: string) {
+    const requests = await this.friendshipRepository.getIncomingRequests(userSub);
+    return requests.map((request) => ({
+      sub: request.sub,
+      nickname: request.nickname,
+    }));
+  }
+
   async listFriends(userSub: string) {
     const friends = await this.friendshipRepository.getAcceptedFriends(userSub);
     return friends.map((friend) => ({
