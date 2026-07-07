@@ -2,6 +2,15 @@ export const INSERT_USER = `
   INSERT INTO users.profile (sub, nickname, email, role, pass_hash) VALUES ($1, $2, $3, $4, $5) RETURNING *;
 `;
 
+export const EXISTS_BY_NICKNAME = `
+  SELECT EXISTS (
+    SELECT 1
+    FROM users.profile
+    WHERE lower(nickname) = lower($1)
+    LIMIT 1
+  );
+`;
+
 export const GET_PUBLIC_PROFILE_BY_NICKNAME = `
   SELECT sub, nickname, created_at, stats_public
   FROM users.profile

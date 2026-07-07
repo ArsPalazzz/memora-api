@@ -1,6 +1,6 @@
 {
   "type": "object",
-  "required": ["email", "password"],
+  "required": ["email", "password", "nickname"],
   "additionalProperties": false,
   "properties": {
     "email": {
@@ -10,6 +10,12 @@
     "password": {
       "type": "string",
       "minLength": 5
+    },
+    "nickname": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]{3,50}$",
+      "minLength": 3,
+      "maxLength": 50
     }
   }
 }

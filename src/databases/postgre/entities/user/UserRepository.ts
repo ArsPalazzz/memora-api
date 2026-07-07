@@ -6,7 +6,7 @@ import {
   GetProfileIdBySubRes,
 } from '../../../../services/users/user.interfaces';
 import Table from '../Table';
-import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
+import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, EXISTS_BY_NICKNAME, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
 
 export class UserRepository extends Table {
   async createUser(params: CreateUserParams) {
@@ -26,6 +26,16 @@ export class UserRepository extends Table {
       name: 'existByEmail',
       text: `SELECT EXISTS (SELECT 1 FROM users.profile WHERE email = $1 LIMIT 1);`,
       values: [email],
+    };
+
+    return this.exists(query);
+  }
+
+  async existsByNickname(nickname: string) {
+    const query: Query = {
+      name: 'existsByNickname',
+      text: EXISTS_BY_NICKNAME,
+      values: [nickname],
     };
 
     return this.exists(query);

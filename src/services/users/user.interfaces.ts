@@ -17,6 +17,7 @@ export interface CreateUserParams {
 export interface CreateUserPayload {
   email: string;
   pass: string;
+  nickname: string;
 }
 
 export interface GetProfileBySubRes {

@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import userService from '../../../services/users/UserService';
 import publicProfileService from '../../../services/users/PublicProfileService';
 import cardService from '../../../services/cards/CardService';
-import { BadRequestError, NotFoundError } from '../../../exceptions';
+import { BadRequestError, ConflictError, NotFoundError } from '../../../exceptions';
 import { ajv } from '../../../utils';
 import createError from 'http-errors';
 
@@ -22,19 +22,24 @@ export async function createUserCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const { email, password } = req.body as { email: string; password: string };
+    const { email, password, nickname } = req.body as {
+      email: string;
+      password: string;
+      nickname: string;
+    };
 
-    const user = await userService.createUser({ email, pass: password });
+    const user = await userService.createUser({ email, pass: password, nickname });
     await cardService.createFeedSettings(user.sub);
     await cardService.createReviewSettings(user.sub);
     await cardService.createInboxDesk(user.sub);
 
     res.json(user);
   } catch (e: unknown) {
-    if (e instanceof Error) {
-      if (e.message.includes('with this email')) {
-        return next(createError(400, e.message));
-      }
+    if (e instanceof ConflictError) {
+      return next(createError(409, e.message));
+    }
+    if (e instanceof BadRequestError) {
+      return next(createError(400, e.message));
     }
 
     next(e);

@@ -8,7 +8,6 @@ import {
   GetProfilePayload,
 } from './user.interfaces';
 import { v4 as uuidv4 } from 'uuid';
-import { uniqueNamesGenerator, adjectives, colors, animals } from 'unique-names-generator';
 import authProvider, { AuthProvider } from '../../providers/auth/AuthProvider';
 import {
   GET_CARD_NUMBER_BY_DAY,
@@ -16,6 +15,7 @@ import {
   MAX_CARDS_DAILY,
   MIN_CARDS_DAILY,
   UserRole,
+  isValidPublicNickname,
 } from './user.const';
 import streakStatsRepository, {
   StreakStatsRepository,
@@ -23,6 +23,7 @@ import streakStatsRepository, {
 import dailyStatsRepository, {
   DailyStatsRepository,
 } from '../../databases/postgre/entities/user/DailyStatsRepository';
+import { BadRequestError, ConflictError } from '../../exceptions';
 
 export class UserService {
   constructor(
@@ -33,15 +34,31 @@ export class UserService {
   ) {}
 
   async createUser(params: CreateUserPayload) {
+    const nickname = params.nickname.trim().toLowerCase();
+
+    if (!isValidPublicNickname(nickname)) {
+      throw new BadRequestError('Invalid nickname');
+    }
+
     const exists = await this.userRepository.existByEmail(params.email);
     if (exists) {
-      throw new Error('User with this email is already exist');
+      throw new ConflictError('User with this email is already exist');
+    }
+
+    const nicknameTaken = await this.userRepository.existsByNickname(nickname);
+    if (nicknameTaken) {
+      throw new ConflictError('Nickname is already taken');
     }
 
     const userInfo = this.generateUserInfo();
     const passwordHash = await this.authProvider.createPasswordHash(params.pass);
 
-    const userData = { ...userInfo, email: params.email, role: UserRole.REGISTERED };
+    const userData = {
+      ...userInfo,
+      nickname,
+      email: params.email,
+      role: UserRole.REGISTERED,
+    };
 
     const userId = await this.userRepository.createUser({
       ...userData,
@@ -189,10 +206,7 @@ export class UserService {
   }
 
   private generateUserInfo() {
-    const sub = uuidv4();
-    const nickname = uniqueNamesGenerator({ dictionaries: [adjectives, colors, animals] });
-
-    return { sub, nickname };
+    return { sub: uuidv4() };
   }
 }
 
