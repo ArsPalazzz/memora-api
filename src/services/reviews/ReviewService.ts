@@ -14,14 +14,22 @@ export class ReviewService {
   ) {}
 
   async notifyUser(userSub: string, dueCount: number): Promise<void> {
+    let batchId: string | null = null;
+
     try {
-      const alreadyNotified = await this.reviewRepository.existRecentBatch(userSub);
-      if (alreadyNotified) {
-        console.log(`⏸️ Already notified user ${userSub} recently`);
+      const recentlyNotified = await this.reviewRepository.existRecentNotification(userSub);
+      if (recentlyNotified) {
+        console.log(`⏸️ Push cooldown active for user ${userSub}`);
         return;
       }
 
-      const batchId = await this.reviewRepository.createBatch(userSub);
+      const tokens = await this.notificationService.getActiveFcmTokens(userSub);
+      if (tokens.length === 0) {
+        console.log(`📭 No active FCM tokens for user ${userSub}, skipping push`);
+        return;
+      }
+
+      batchId = await this.reviewRepository.createBatch(userSub);
       if (!batchId) {
         throw new Error(`Cannot create batch`);
       }
@@ -34,12 +42,6 @@ export class ReviewService {
         reviewSettings.cards_per_session
       );
 
-      const tokens = await this.notificationService.getActiveFcmTokens(userSub);
-      if (tokens.length === 0) {
-        console.log(`📭 No active tokens for user ${userSub}`);
-        return;
-      }
-
       const message = {
         title: `${dueCount} words waiting to review`,
         body: 'Click to start session',
@@ -50,7 +52,8 @@ export class ReviewService {
         },
       };
 
-      let anySent = false;
+      let sentCount = 0;
+      let failedCount = 0;
 
       for (const { token } of tokens) {
         const result = await this.fcmService.sendPushNotification(
@@ -61,19 +64,35 @@ export class ReviewService {
         );
 
         if (result.success) {
-          anySent = true;
-        } else if (result.isInvalidToken) {
-          await this.notificationService.deactivateInvalidToken(token, 'invalid_token_on_send');
+          sentCount += 1;
+        } else {
+          failedCount += 1;
+          if (result.isInvalidToken) {
+            await this.notificationService.deactivateInvalidToken(token, 'invalid_token_on_send');
+            console.log(`🗑️ Deactivated invalid FCM token for user ${userSub}`);
+          } else {
+            console.log(`❌ FCM send failed for user ${userSub}: ${result.error}`);
+          }
         }
       }
 
-      if (anySent) {
+      if (sentCount > 0) {
         await this.reviewRepository.markBatchAsNotified(batchId);
-        console.log(`📨 Notified user ${userSub} about ${dueCount} cards`);
-      } else {
-        console.log(`⚠️ Failed to send notifications to ${userSub}`);
+        console.log(
+          `📨 Notified user ${userSub} about ${dueCount} cards (${sentCount}/${tokens.length} tokens)`
+        );
+        return;
       }
+
+      await this.reviewRepository.deleteUnnotifiedBatch(batchId);
+      batchId = null;
+      console.log(
+        `⚠️ Failed to send review push to user ${userSub} (${failedCount}/${tokens.length} tokens failed)`
+      );
     } catch (error) {
+      if (batchId) {
+        await this.reviewRepository.deleteUnnotifiedBatch(batchId);
+      }
       console.error(`❌ Error notifying user ${userSub}:`, error);
       throw error;
     }

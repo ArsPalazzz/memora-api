@@ -8,14 +8,15 @@ export class FCMService {
     data: object = {}
   ): Promise<{ success: boolean; error?: string; isInvalidToken?: boolean }> {
     try {
+      const stringData = Object.fromEntries(
+        Object.entries({ title, body, ...data, timestamp: Date.now().toString() }).map(
+          ([key, value]) => [key, String(value)]
+        )
+      );
+
       const message = {
         token,
-        data: {
-          title,
-          body,
-          ...data,
-          timestamp: Date.now().toString(),
-        },
+        data: stringData,
         android: { priority: 'high' as const },
         webpush: { headers: { Urgency: 'high' } },
       };

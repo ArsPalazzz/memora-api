@@ -3,17 +3,18 @@ import Table from '../Table';
 import {
   ADD_CARDS_TO_BATCH,
   CREATE_BATCH,
-  EXIST_RECENT_BATCH,
+  DELETE_BATCH,
+  EXIST_RECENT_NOTIFICATION,
   GET_BATCH_CARDS,
   GET_BATCH_CARDS_FOR_USER,
   MARK_BATCH_AS_NOTIFIED,
 } from './ReviewRepositoryQueries';
 
 export class ReviewRepository extends Table {
-  async existRecentBatch(userSub: string) {
+  async existRecentNotification(userSub: string) {
     const query: Query = {
-      name: 'getRecentBatches',
-      text: EXIST_RECENT_BATCH,
+      name: 'existRecentNotification',
+      text: EXIST_RECENT_NOTIFICATION,
       values: [userSub],
     };
 
@@ -44,6 +45,16 @@ export class ReviewRepository extends Table {
     const query: Query = {
       name: 'markBatchAsNotified',
       text: MARK_BATCH_AS_NOTIFIED,
+      values: [batchId],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async deleteUnnotifiedBatch(batchId: string): Promise<void> {
+    const query: Query = {
+      name: 'deleteUnnotifiedBatch',
+      text: DELETE_BATCH,
       values: [batchId],
     };
 

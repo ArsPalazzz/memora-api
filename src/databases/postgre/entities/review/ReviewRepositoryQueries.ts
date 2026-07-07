@@ -1,9 +1,17 @@
-export const EXIST_RECENT_BATCH = `
-   SELECT EXISTS (SELECT 1
-        FROM reviews.review_batch rb
-        WHERE rb.user_sub = $1
-        AND rb.created_at > NOW() - INTERVAL '3 hours'
-        LIMIT 1);
+export const EXIST_RECENT_NOTIFICATION = `
+  SELECT EXISTS (
+    SELECT 1
+    FROM reviews.review_batch rb
+    WHERE rb.user_sub = $1
+      AND rb.notified_at > NOW() - INTERVAL '3 hours'
+    LIMIT 1
+  );
+`;
+
+export const DELETE_BATCH = `
+  DELETE FROM reviews.review_batch
+  WHERE id = $1
+    AND notified_at IS NULL
 `;
 
 export const CREATE_BATCH = `
