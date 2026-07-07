@@ -379,7 +379,7 @@ export class CardRepository extends Table {
       values: [userSub],
     };
 
-    return await this.getItems<{ sub: string; title: string }>(query);
+    return await this.getItems<{ sub: string; title: string; folderSub: string | null }>(query);
   }
 
   async getDeskDetails(params: { deskSub: string; userSub: string }) {

@@ -696,11 +696,15 @@ ORDER BY d.created_at DESC;
 `;
 
 export const GET_DESK_SUBS_BY_CREATOR_SUB = `
-  SELECT sub, title
-  FROM cards.desk
-  WHERE creator_sub = $1
-    AND is_inbox = false
-  ORDER BY created_at DESC;
+  SELECT
+    d.sub,
+    d.title,
+    fd.folder_sub AS "folderSub"
+  FROM cards.desk d
+  LEFT JOIN cards.folder_desk fd ON fd.desk_sub = d.sub
+  WHERE d.creator_sub = $1
+    AND d.is_inbox = false
+  ORDER BY d.title ASC;
 `;
 
 export const GET_DESK_DETAILS = `
