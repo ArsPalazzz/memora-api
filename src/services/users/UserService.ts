@@ -16,6 +16,7 @@ import {
   MIN_CARDS_DAILY,
   UserRole,
   isValidPublicNickname,
+  isValidNicknameSearchPrefix,
 } from './user.const';
 import streakStatsRepository, {
   StreakStatsRepository,
@@ -71,6 +72,16 @@ export class UserService {
     await this.streakStatsRepository.insert({ userId });
 
     return { ...userData, password: params.pass };
+  }
+
+  async searchUsersByNicknamePrefix(viewerSub: string, query: string) {
+    const prefix = query.trim().toLowerCase();
+
+    if (!isValidNicknameSearchPrefix(prefix)) {
+      throw new BadRequestError('Invalid search query');
+    }
+
+    return this.userRepository.searchByNicknamePrefix(prefix, viewerSub);
   }
 
   async getProfile(params: GetProfilePayload) {

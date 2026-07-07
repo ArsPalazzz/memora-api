@@ -11,6 +11,15 @@ export const EXISTS_BY_NICKNAME = `
   );
 `;
 
+export const SEARCH_USERS_BY_NICKNAME_PREFIX = `
+  SELECT sub, nickname
+  FROM users.profile
+  WHERE lower(nickname) LIKE lower($1) || '%'
+    AND sub != $2
+  ORDER BY nickname ASC
+  LIMIT 5;
+`;
+
 export const GET_PUBLIC_PROFILE_BY_NICKNAME = `
   SELECT sub, nickname, created_at, stats_public
   FROM users.profile

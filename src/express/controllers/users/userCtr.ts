@@ -101,6 +101,21 @@ export async function getInboxSummaryCtr(req: Request, res: Response, next: Next
   }
 }
 
+export async function searchUsersByNicknameCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const query = typeof req.query.q === 'string' ? req.query.q : '';
+
+    const userSub = res.locals.userSub as string;
+    const users = await userService.searchUsersByNicknamePrefix(userSub, query);
+    res.json(users);
+  } catch (e: unknown) {
+    if (e instanceof BadRequestError) {
+      return next(createError(422, e.message));
+    }
+    next(e);
+  }
+}
+
 export async function getPublicProfileCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const { nickname } = req.params;

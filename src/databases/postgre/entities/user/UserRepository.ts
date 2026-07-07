@@ -6,7 +6,7 @@ import {
   GetProfileIdBySubRes,
 } from '../../../../services/users/user.interfaces';
 import Table from '../Table';
-import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, EXISTS_BY_NICKNAME, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
+import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, EXISTS_BY_NICKNAME, SEARCH_USERS_BY_NICKNAME_PREFIX, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
 
 export class UserRepository extends Table {
   async createUser(params: CreateUserParams) {
@@ -90,6 +90,16 @@ export class UserRepository extends Table {
 
     const res = await this.getItems<{ id: number }>(query);
     return res.map((item) => item.id);
+  }
+
+  async searchByNicknamePrefix(prefix: string, excludeSub: string) {
+    const query: Query = {
+      name: 'searchUsersByNicknamePrefix',
+      text: SEARCH_USERS_BY_NICKNAME_PREFIX,
+      values: [prefix, excludeSub],
+    };
+
+    return this.getItems<{ sub: string; nickname: string }>(query);
   }
 
   async getPublicProfileByNickname(nickname: string) {

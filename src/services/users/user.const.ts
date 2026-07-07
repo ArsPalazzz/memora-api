@@ -10,7 +10,12 @@ export const GOAL_ADJUSTMENT_STEP = 5;
 export const GET_CARD_NUMBER_BY_DAY = (day: number) => 20 + (day - 1) * GOAL_ADJUSTMENT_STEP;
 
 export const NICKNAME_PATTERN = /^[a-z0-9_]{3,50}$/;
+export const NICKNAME_SEARCH_PREFIX_PATTERN = /^[a-z0-9_]{1,50}$/;
 
 export function isValidPublicNickname(nickname: string): boolean {
   return NICKNAME_PATTERN.test(nickname);
+}
+
+export function isValidNicknameSearchPrefix(prefix: string): boolean {
+  return NICKNAME_SEARCH_PREFIX_PATTERN.test(prefix);
 }
