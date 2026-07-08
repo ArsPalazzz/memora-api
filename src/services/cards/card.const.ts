@@ -5,6 +5,7 @@ export enum CARD_ORIENTATION {
 }
 
 export const CARDS_PER_SESSION_LIMIT = 200;
+export const DESK_PREVIEW_CARD_LIMIT = 10;
 
 export const SUPPORTED_LANGUAGES = [
   'en',

@@ -9,7 +9,7 @@ import userCardSrsRepository, {
 } from '../../databases/postgre/entities/card/UserCardSrsRepository';
 import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../exceptions';
-import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, DESK_VISIBILITY, DeskVisibility, INBOX_DESK_DESCRIPTION, INBOX_DESK_TITLE, canAddDeskToLibrary, canViewDeskVisibility, LANGUAGE_NAMES, LanguageCode, visibilityToLegacyPublic } from './card.const';
+import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, DESK_PREVIEW_CARD_LIMIT, DESK_VISIBILITY, DeskVisibility, INBOX_DESK_DESCRIPTION, INBOX_DESK_TITLE, canAddDeskToLibrary, canViewDeskVisibility, LANGUAGE_NAMES, LanguageCode, visibilityToLegacyPublic } from './card.const';
 import { StudyMode, DEFAULT_DESK_STUDY_MODE } from '../games/studyMode.const';
 import { Folder, FolderTree, GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
@@ -529,7 +529,11 @@ export class CardService {
     }
 
     const [deskInfo, weeklyStats] = await Promise.all([
-      this.cardRepository.getDeskDetails({ deskSub: desk_sub, userSub: sub }),
+      this.cardRepository.getDeskDetails({
+        deskSub: desk_sub,
+        userSub: sub,
+        cardLimit: DESK_PREVIEW_CARD_LIMIT,
+      }),
       this.gameSessionRepository.getWeeklyDeskStats(sub, desk_sub),
     ]);
 

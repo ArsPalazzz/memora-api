@@ -382,11 +382,15 @@ export class CardRepository extends Table {
     return await this.getItems<{ sub: string; title: string; folderSub: string | null }>(query);
   }
 
-  async getDeskDetails(params: { deskSub: string; userSub: string }) {
+  async getDeskDetails(params: {
+    deskSub: string;
+    userSub: string;
+    cardLimit?: number;
+  }) {
     const query: Query = {
       name: 'getDeskDetails',
       text: GET_DESK_DETAILS,
-      values: [params.deskSub, params.userSub],
+      values: [params.deskSub, params.userSub, params.cardLimit ?? null],
     };
 
     return this.getItem<GetDeskDetailsResult>(query);

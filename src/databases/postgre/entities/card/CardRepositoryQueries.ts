@@ -761,6 +761,12 @@ export const GET_DESK_DETAILS = `
       COUNT(CASE WHEN interval_minutes > 43200 THEN 1 END) as mastered_cards,
       COALESCE(AVG(COALESCE(ease_factor, 2.5)), 0) as avg_ease_factor
     FROM desk_cards
+  ),
+  card_preview AS (
+    SELECT *
+    FROM desk_cards
+    ORDER BY created_at DESC
+    LIMIT $3
   )
   SELECT 
     dd.sub,
@@ -797,7 +803,7 @@ export const GET_DESK_DETAILS = `
       'avg_ease_factor', sc.avg_ease_factor
     ) AS stats
   FROM desk_data dd
-  LEFT JOIN desk_cards dc ON true
+  LEFT JOIN card_preview dc ON true
   LEFT JOIN stats_calculation sc ON true
   GROUP BY 
     dd.sub, dd.title, dd.description, dd.visibility, dd.created_at, 
