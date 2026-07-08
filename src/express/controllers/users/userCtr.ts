@@ -1,10 +1,13 @@
 import { NextFunction, Request, Response } from 'express';
 import userService from '../../../services/users/UserService';
+import avatarService from '../../../services/users/AvatarService';
 import publicProfileService from '../../../services/users/PublicProfileService';
 import cardService from '../../../services/cards/CardService';
 import { BadRequestError, ConflictError, NotFoundError } from '../../../exceptions';
 import { ajv } from '../../../utils';
 import createError from 'http-errors';
+import { formatProfileResponse } from '../../../utils/formatProfileResponse';
+import { mapAvatarUrl } from '../../../utils/avatarUrl';
 
 import * as createUserDtoSchema from './schemas/createUserDto.json';
 import * as updateMyProfileBodyDtoSchema from './schemas/updateMyProfileBodyDto.json';
@@ -54,7 +57,10 @@ export async function getMyProfileCtr(req: Request, res: Response, next: NextFun
     const settings = await cardService.getFeedSettingsByUserSub(userSub);
     const reviewSettings = await cardService.getReviewSettingsByUserSub(userSub);
 
-    res.json({ profile, settings: { ...settings, reviewSettings } });
+    res.json({
+      profile: formatProfileResponse(profile!),
+      settings: { ...settings, reviewSettings },
+    });
   } catch (e: unknown) {
     next(e);
   }
@@ -76,7 +82,7 @@ export async function updateMyProfileCtr(req: Request, res: Response, next: Next
     await userService.updateMyProfile(userSub, body);
 
     const profile = await userService.getProfile({ sub: userSub });
-    res.json({ profile });
+    res.json({ profile: formatProfileResponse(profile!) });
   } catch (e: unknown) {
     next(e);
   }
@@ -107,7 +113,7 @@ export async function searchUsersByNicknameCtr(req: Request, res: Response, next
 
     const userSub = res.locals.userSub as string;
     const users = await userService.searchUsersByNicknamePrefix(userSub, query);
-    res.json(users);
+    res.json(users.map((user) => mapAvatarUrl(user)));
   } catch (e: unknown) {
     if (e instanceof BadRequestError) {
       return next(createError(422, e.message));
@@ -131,6 +137,46 @@ export async function getPublicProfileCtr(req: Request, res: Response, next: Nex
     if (e instanceof BadRequestError) {
       return next(createError(422, e.message));
     }
+    if (e instanceof NotFoundError) {
+      return next(createError(404, e.message));
+    }
+    next(e);
+  }
+}
+
+export async function uploadAvatarCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+    const file = req.file;
+
+    if (!file) {
+      return next(createError(400, 'Avatar image is required'));
+    }
+
+    await avatarService.uploadAvatar(userSub, file.buffer);
+    const profile = await userService.getProfile({ sub: userSub });
+
+    res.json({ profile: formatProfileResponse(profile!) });
+  } catch (e: unknown) {
+    if (e instanceof BadRequestError) {
+      return next(createError(400, e.message));
+    }
+    if (e instanceof NotFoundError) {
+      return next(createError(404, e.message));
+    }
+    next(e);
+  }
+}
+
+export async function deleteAvatarCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+
+    await avatarService.deleteAvatar(userSub);
+    const profile = await userService.getProfile({ sub: userSub });
+
+    res.json({ profile: formatProfileResponse(profile!) });
+  } catch (e: unknown) {
     if (e instanceof NotFoundError) {
       return next(createError(404, e.message));
     }

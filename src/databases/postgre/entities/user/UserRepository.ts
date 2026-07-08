@@ -6,7 +6,7 @@ import {
   GetProfileIdBySubRes,
 } from '../../../../services/users/user.interfaces';
 import Table from '../Table';
-import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, EXISTS_BY_NICKNAME, SEARCH_USERS_BY_NICKNAME_PREFIX, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
+import { INSERT_USER, GET_PUBLIC_PROFILE_BY_NICKNAME, EXISTS_BY_NICKNAME, SEARCH_USERS_BY_NICKNAME_PREFIX, UPDATE_STATS_PUBLIC, UPDATE_LEAGUE_NOTIFICATIONS, UPDATE_AVATAR_KEY, GET_LEAGUE_NOTIFICATION_STATE, UPDATE_LEAGUE_NOTIFICATION_STATE, MARK_LEAGUE_NOTIFIED_TODAY, GET_USERS_FOR_LEAGUE_NOTIFICATIONS } from './UserRepositoryQueries';
 
 export class UserRepository extends Table {
   async createUser(params: CreateUserParams) {
@@ -54,7 +54,7 @@ export class UserRepository extends Table {
   async getProfileBySub(sub: string) {
     const query: Query = {
       name: 'getProfileBySub',
-      text: `SELECT sub, nickname, email, created_at, stats_public, league_notifications FROM users.profile WHERE sub = $1 LIMIT 1;`,
+      text: `SELECT sub, nickname, email, created_at, stats_public, league_notifications, avatar_key FROM users.profile WHERE sub = $1 LIMIT 1;`,
       values: [sub],
     };
 
@@ -99,7 +99,7 @@ export class UserRepository extends Table {
       values: [prefix, excludeSub],
     };
 
-    return this.getItems<{ sub: string; nickname: string }>(query);
+    return this.getItems<{ sub: string; nickname: string; avatar_key: string | null }>(query);
   }
 
   async getPublicProfileByNickname(nickname: string) {
@@ -114,6 +114,7 @@ export class UserRepository extends Table {
       nickname: string;
       created_at: string;
       stats_public: boolean;
+      avatar_key: string | null;
     }>(query);
   }
 
@@ -132,6 +133,16 @@ export class UserRepository extends Table {
       name: 'updateLeagueNotifications',
       text: UPDATE_LEAGUE_NOTIFICATIONS,
       values: [userSub, enabled],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async updateAvatarKey(userSub: string, avatarKey: string | null): Promise<void> {
+    const query: Query = {
+      name: 'updateAvatarKey',
+      text: UPDATE_AVATAR_KEY,
+      values: [userSub, avatarKey],
     };
 
     await this.updateItems(query);

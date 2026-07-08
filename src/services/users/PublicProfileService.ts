@@ -10,6 +10,7 @@ import friendshipRepository, {
 import userService, { UserService } from './UserService';
 import { BadRequestError, NotFoundError } from '../../exceptions';
 import { isValidPublicNickname } from './user.const';
+import { getAvatarPublicUrl } from '../../utils/avatarUrl';
 
 export class PublicProfileService {
   constructor(
@@ -40,6 +41,7 @@ export class PublicProfileService {
     const response: {
       nickname: string;
       memberSince: string;
+      avatar_url: string | null;
       desks: {
         sub: string;
         title: string;
@@ -53,6 +55,7 @@ export class PublicProfileService {
     } = {
       nickname: profile.nickname,
       memberSince: profile.created_at,
+      avatar_url: getAvatarPublicUrl(profile.avatar_key),
       desks: desks.map((desk) => ({
         sub: desk.sub,
         title: desk.title,

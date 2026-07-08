@@ -11,6 +11,9 @@ const serviceAccount = JSON.parse(serviceAccountJSON);
 admin.initializeApp({
   credential: cert(serviceAccount),
   projectId: serviceAccount.project_id,
+  storageBucket:
+    process.env.FIREBASE_STORAGE_BUCKET ??
+    `${serviceAccount.project_id}.firebasestorage.app`,
 });
 
 export { admin };

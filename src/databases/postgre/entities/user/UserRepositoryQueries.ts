@@ -12,7 +12,7 @@ export const EXISTS_BY_NICKNAME = `
 `;
 
 export const SEARCH_USERS_BY_NICKNAME_PREFIX = `
-  SELECT sub, nickname
+  SELECT sub, nickname, avatar_key
   FROM users.profile
   WHERE lower(nickname) LIKE lower($1) || '%'
     AND sub != $2
@@ -21,10 +21,16 @@ export const SEARCH_USERS_BY_NICKNAME_PREFIX = `
 `;
 
 export const GET_PUBLIC_PROFILE_BY_NICKNAME = `
-  SELECT sub, nickname, created_at, stats_public
+  SELECT sub, nickname, created_at, stats_public, avatar_key
   FROM users.profile
   WHERE lower(nickname) = lower($1)
   LIMIT 1
+`;
+
+export const UPDATE_AVATAR_KEY = `
+  UPDATE users.profile
+  SET avatar_key = $2
+  WHERE sub = $1
 `;
 
 export const UPDATE_STATS_PUBLIC = `

@@ -34,7 +34,7 @@ export const DELETE_PENDING_FRIENDSHIP = `
 `;
 
 export const GET_INCOMING_FRIEND_REQUESTS = `
-  SELECT p_requester.sub, p_requester.nickname
+  SELECT p_requester.sub, p_requester.nickname, p_requester.avatar_key
   FROM users.friendship f
   INNER JOIN users.profile p_requester ON p_requester.sub = f.requester_sub
   WHERE f.addressee_sub = $1
@@ -51,7 +51,11 @@ export const GET_ACCEPTED_FRIENDS = `
     CASE
       WHEN f.requester_sub = $1 THEN p_addressee.nickname
       ELSE p_requester.nickname
-    END AS nickname
+    END AS nickname,
+    CASE
+      WHEN f.requester_sub = $1 THEN p_addressee.avatar_key
+      ELSE p_requester.avatar_key
+    END AS avatar_key
   FROM users.friendship f
   INNER JOIN users.profile p_requester ON p_requester.sub = f.requester_sub
   INNER JOIN users.profile p_addressee ON p_addressee.sub = f.addressee_sub
@@ -78,6 +82,10 @@ export const GET_FRIENDS_ACTIVITY = `
       WHEN f.requester_sub = $1 THEN p_addressee.nickname
       ELSE p_requester.nickname
     END AS nickname,
+    CASE
+      WHEN f.requester_sub = $1 THEN p_addressee.avatar_key
+      ELSE p_requester.avatar_key
+    END AS avatar_key,
     COALESCE(ds.cards_reviewed, 0)::int AS cards_reviewed,
     COALESCE(
       ds.daily_goal,
@@ -115,7 +123,7 @@ export const GET_WEEKLY_LEAGUE = `
       (date_trunc('week', timezone('UTC', now()))::date + interval '6 days')::date AS week_end
   ),
   participants AS (
-    SELECT p.id AS user_id, p.nickname, true AS is_me
+    SELECT p.id AS user_id, p.nickname, p.avatar_key, true AS is_me
     FROM users.profile p
     WHERE p.sub = $1
 
@@ -124,6 +132,7 @@ export const GET_WEEKLY_LEAGUE = `
     SELECT
       CASE WHEN f.requester_sub = $1 THEN p_addressee.id ELSE p_requester.id END,
       CASE WHEN f.requester_sub = $1 THEN p_addressee.nickname ELSE p_requester.nickname END,
+      CASE WHEN f.requester_sub = $1 THEN p_addressee.avatar_key ELSE p_requester.avatar_key END,
       false
     FROM users.friendship f
     INNER JOIN users.profile p_requester ON p_requester.sub = f.requester_sub
@@ -151,6 +160,7 @@ export const GET_WEEKLY_LEAGUE = `
     wb.week_start::text AS week_start,
     wb.week_end::text AS week_end,
     pt.nickname,
+    pt.avatar_key,
     pt.is_me,
     COALESCE(w.cards_reviewed, 0) AS cards_reviewed,
     COALESCE(w.goals_hit, 0) AS goals_hit,

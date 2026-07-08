@@ -27,6 +27,7 @@ export interface GetProfileBySubRes {
   created_at: string;
   stats_public: boolean;
   league_notifications: boolean;
+  avatar_key: string | null;
 }
 
 export interface GetProfileIdBySubRes {

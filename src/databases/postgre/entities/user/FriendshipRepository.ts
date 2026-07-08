@@ -77,7 +77,7 @@ export class FriendshipRepository extends Table {
       values: [userSub],
     };
 
-    return this.getItems<{ sub: string; nickname: string }>(query);
+    return this.getItems<{ sub: string; nickname: string; avatar_key: string | null }>(query);
   }
 
   async getAcceptedFriends(userSub: string) {
@@ -87,7 +87,7 @@ export class FriendshipRepository extends Table {
       values: [userSub],
     };
 
-    return this.getItems<{ sub: string; nickname: string }>(query);
+    return this.getItems<{ sub: string; nickname: string; avatar_key: string | null }>(query);
   }
 
   async getFriendsActivity(userSub: string) {
@@ -99,6 +99,7 @@ export class FriendshipRepository extends Table {
 
     return this.getItems<{
       nickname: string;
+      avatar_key: string | null;
       cards_reviewed: number;
       daily_goal: number;
       goal_achieved: boolean;
@@ -132,6 +133,7 @@ export class FriendshipRepository extends Table {
       week_start: string;
       week_end: string;
       nickname: string;
+      avatar_key: string | null;
       is_me: boolean;
       cards_reviewed: number;
       goals_hit: number;

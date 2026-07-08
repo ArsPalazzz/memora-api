@@ -7,6 +7,7 @@ import userRepository, {
 import { BadRequestError, ConflictError, NotFoundError } from '../../exceptions';
 import { isValidPublicNickname } from './user.const';
 import { getUtcWeekBounds, rankLeagueParticipants } from './leagueScore';
+import { mapAvatarUrl, getAvatarPublicUrl } from '../../utils/avatarUrl';
 
 export type FriendshipStatus = 'none' | 'pending' | 'accepted';
 export type FriendshipDirection = 'outgoing' | 'incoming' | null;
@@ -94,24 +95,19 @@ export class FriendshipService {
 
   async listIncomingRequests(userSub: string) {
     const requests = await this.friendshipRepository.getIncomingRequests(userSub);
-    return requests.map((request) => ({
-      sub: request.sub,
-      nickname: request.nickname,
-    }));
+    return requests.map((request) => mapAvatarUrl(request));
   }
 
   async listFriends(userSub: string) {
     const friends = await this.friendshipRepository.getAcceptedFriends(userSub);
-    return friends.map((friend) => ({
-      sub: friend.sub,
-      nickname: friend.nickname,
-    }));
+    return friends.map((friend) => mapAvatarUrl(friend));
   }
 
   async getFriendsActivity(userSub: string) {
     const rows = await this.friendshipRepository.getFriendsActivity(userSub);
     return rows.map((row) => ({
       nickname: row.nickname,
+      avatar_url: mapAvatarUrl(row).avatar_url,
       cardsReviewedToday: row.cards_reviewed,
       dailyGoal: row.daily_goal,
       goalAchieved: row.goal_achieved,
@@ -133,7 +129,16 @@ export class FriendshipService {
         goalsHit: row.goals_hit,
         currentStreak: row.current_streak,
       }))
-    );
+    ).map((participant) => {
+      const source = rows.find(
+        (row) => row.nickname === participant.nickname && row.is_me === participant.isMe
+      );
+
+      return {
+        ...participant,
+        avatar_url: getAvatarPublicUrl(source?.avatar_key ?? null),
+      };
+    });
 
     const me = participants.find((participant) => participant.isMe);
 
