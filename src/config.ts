@@ -29,7 +29,8 @@ export const jwtConfig = {
 
 export const redisOptions = {
   port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT, 10) : 6379,
-  url: process.env.REDIS_URL,
+  url: process.env.REDIS_URL?.trim() || undefined,
+  enabled: Boolean(process.env.REDIS_URL?.trim()),
 };
 
 export const postgresOptions = {

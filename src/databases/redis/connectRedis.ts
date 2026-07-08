@@ -4,14 +4,19 @@ import { redisOptions } from '../../config';
 import RedisClient from './redis-client';
 import { RedisInstance } from './redis.types';
 
-const DEFAULT_REDIS_URL = `redis://127.0.0.1:${redisOptions.port}`;
+export function isRedisEnabled(): boolean {
+  return redisOptions.enabled;
+}
 
-export function resolveRedisUrl(): string {
-  return redisOptions.url ?? DEFAULT_REDIS_URL;
+export function resolveRedisUrl(): string | null {
+  return redisOptions.url ?? null;
 }
 
 export async function tryConnectRedis(): Promise<RedisInstance | null> {
   const url = resolveRedisUrl();
+  if (!url) {
+    return null;
+  }
 
   try {
     const client = await RedisClient.createConnection(url);

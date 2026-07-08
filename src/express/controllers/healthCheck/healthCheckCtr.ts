@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import Postgres from '../../../databases/postgre';
+import { redisOptions } from '../../../config';
 import swaggerDocument from '../../swagger';
 
 export async function getHealthCtr(req: Request, res: Response, next: NextFunction) {
@@ -8,7 +9,7 @@ export async function getHealthCtr(req: Request, res: Response, next: NextFuncti
     res.json({
       status: 'OK',
       postgres: 'connected',
-      redis: 'connected',
+      redis: redisOptions.enabled ? 'configured' : 'disabled',
     });
   } catch (e) {
     next(e);

@@ -3,7 +3,12 @@ import { Server } from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import logger from '../logger';
 import { corsUrl } from '../config';
-import { createPubSubClients, resolveRedisUrl, tryConnectRedis } from '../databases/redis/connectRedis';
+import {
+  createPubSubClients,
+  isRedisEnabled,
+  resolveRedisUrl,
+  tryConnectRedis,
+} from '../databases/redis/connectRedis';
 import duelLobbyCache from '../services/games/duel/DuelLobbyCache';
 import { createDuelSocketServer } from './duels/DuelSocketServer';
 
@@ -18,18 +23,23 @@ export async function attachSocketServer(httpServer: HttpServer): Promise<Server
     path: '/socket.io',
   });
 
-  const redisUrl = resolveRedisUrl();
-  const pubSubClients = await createPubSubClients(redisUrl);
+  if (isRedisEnabled()) {
+    const redisUrl = resolveRedisUrl()!;
+    const pubSubClients = await createPubSubClients(redisUrl);
 
-  if (pubSubClients) {
-    io.adapter(createAdapter(pubSubClients.pubClient, pubSubClients.subClient));
-    logger.info('Socket.IO Redis adapter enabled');
+    if (pubSubClients) {
+      io.adapter(createAdapter(pubSubClients.pubClient, pubSubClients.subClient));
+      logger.info('Socket.IO Redis adapter enabled');
+    } else {
+      logger.warn('Socket.IO running without Redis adapter (single instance mode)');
+    }
+
+    const redisClient = await tryConnectRedis();
+    await duelLobbyCache.init(redisClient);
   } else {
-    logger.warn('Socket.IO running without Redis adapter (single instance mode)');
+    await duelLobbyCache.init(null);
+    logger.info('Socket.IO running without Redis (single instance mode)');
   }
-
-  const redisClient = await tryConnectRedis();
-  await duelLobbyCache.init(redisClient);
 
   createDuelSocketServer(io);
 
