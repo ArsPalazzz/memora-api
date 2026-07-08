@@ -174,12 +174,20 @@ export class DuelService {
     return this.getLobbyState(duelId, hostSub);
   }
 
-  async leaveLobby(userSub: string, duelId: string): Promise<DuelResponse> {
+  async leaveLobby(
+    userSub: string,
+    duelId: string,
+    options?: { intentional?: boolean }
+  ): Promise<DuelResponse> {
     const duel = await this.getDuelOrThrow(duelId);
     await this.assertParticipant(duelId, userSub);
 
-    if (duel.status !== 'waiting' && duel.status !== 'countdown') {
+    if (duel.status === 'racing' || duel.status === 'finished') {
       throw new ConflictError('Cannot leave duel after it has started');
+    }
+
+    if (duel.status === 'countdown' && !options?.intentional) {
+      throw new ConflictError('Cannot leave during countdown');
     }
 
     if (duel.host_sub === userSub) {

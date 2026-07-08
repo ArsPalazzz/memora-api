@@ -124,7 +124,9 @@ export async function leaveDuelCtr(req: Request, res: Response, next: NextFuncti
     }
 
     const userSub = res.locals.userSub as string;
-    const snapshot = await duelService.leaveLobby(userSub, params.id);
+    const snapshot = await duelService.leaveLobby(userSub, params.id, {
+      intentional: true,
+    });
     await duelLobbyCache.set(params.id, snapshot);
     await duelLobbyCache.publishRemote(params.id, snapshot);
     res.json({ duel: snapshot });

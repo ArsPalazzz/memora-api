@@ -164,7 +164,17 @@ export class DuelSocketServer {
     await this.assertInRoom(socket, duelId);
     this.clearDisconnectTimer(duelId, socket.data.userSub);
 
-    const state = await this.service.leaveLobby(socket.data.userSub, duelId);
+    let state;
+    try {
+      state = await this.service.leaveLobby(socket.data.userSub, duelId);
+    } catch (error) {
+      if (error instanceof ConflictError && error.message === 'Cannot leave during countdown') {
+        return;
+      }
+
+      throw error;
+    }
+
     await socket.leave(duelRoom(duelId));
     socket.data.duelId = undefined;
 
