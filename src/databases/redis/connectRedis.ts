@@ -5,7 +5,7 @@ import RedisClient from './redis-client';
 import { RedisInstance } from './redis.types';
 
 export function isRedisEnabled(): boolean {
-  return redisOptions.enabled;
+  return false;
 }
 
 export function resolveRedisUrl(): string | null {
