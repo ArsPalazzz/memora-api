@@ -4,22 +4,20 @@
 export const shorthands = undefined;
 
 /**
- * Public activity stats on user profiles (public by default, users can opt out).
+ * Make activity stats public by default for existing deployments.
  *
  * @param pgm {import('node-pg-migrate').MigrationBuilder}
  * @returns {Promise<void> | void}
  */
 export const up = (pgm) => {
-  pgm.addColumn(
-    { schema: 'users', name: 'profile' },
-    {
-      stats_public: {
-        type: 'boolean',
-        notNull: true,
-        default: true,
-      },
-    }
-  );
+  pgm.sql(`
+    ALTER TABLE users.profile
+      ALTER COLUMN stats_public SET DEFAULT true;
+
+    UPDATE users.profile
+      SET stats_public = true
+      WHERE stats_public = false;
+  `);
 };
 
 /**
@@ -27,5 +25,8 @@ export const up = (pgm) => {
  * @returns {Promise<void> | void}
  */
 export const down = (pgm) => {
-  pgm.dropColumn({ schema: 'users', name: 'profile' }, 'stats_public');
+  pgm.sql(`
+    ALTER TABLE users.profile
+      ALTER COLUMN stats_public SET DEFAULT false;
+  `);
 };
