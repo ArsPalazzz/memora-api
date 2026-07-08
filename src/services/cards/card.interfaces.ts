@@ -10,6 +10,7 @@ interface Card {
   front_variants: string;
   back_variants: string;
   created_at: string;
+  image_key?: string | null;
 }
 
 export interface GetDeskDetailsResult {
@@ -58,6 +59,7 @@ export interface GetDeskCardsResult {
   frontVariants: string[];
   backVariants: string[];
   examples: string[];
+  imageKey?: string | null;
 }
 
 export interface Folder {

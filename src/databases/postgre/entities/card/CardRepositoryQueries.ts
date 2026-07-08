@@ -147,6 +147,7 @@ export const GET_CARD = `
     c.created_at,
     c.front_variants AS "front_variants",
     c.back_variants AS "back_variants",
+    c.image_key,
     COALESCE(
         array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
         ARRAY[]::text[]
@@ -158,7 +159,8 @@ GROUP BY
     c.sub, 
     c.created_at, 
     c.front_variants, 
-    c.back_variants;
+    c.back_variants,
+    c.image_key;
 `;
 
 export const ARCHIVE_DESK = `
@@ -730,6 +732,7 @@ export const GET_DESK_DETAILS = `
       c.sub,
       c.front_variants,
       c.back_variants,
+      c.image_key,
       c.created_at,
       ucs.repetitions,
       ucs.interval_minutes,
@@ -746,6 +749,7 @@ export const GET_DESK_DETAILS = `
     WHERE c.desk_sub = $1
     GROUP BY 
       c.sub, c.front_variants, c.back_variants, c.created_at,
+      c.image_key,
       ucs.repetitions, ucs.interval_minutes, ucs.ease_factor, 
       ucs.next_review, ucs.last_review
   ),
@@ -778,6 +782,7 @@ export const GET_DESK_DETAILS = `
           'sub', dc.sub,
           'front_variants', dc.front_variants,
           'back_variants', dc.back_variants,
+          'image_key', dc.image_key,
           'created_at', dc.created_at,
           'examples', dc.examples
         )
@@ -807,6 +812,7 @@ SELECT
     c.created_at AS "createdAt",
     c.front_variants AS "frontVariants",
     c.back_variants AS "backVariants",
+    c.image_key AS "imageKey",
     COALESCE(
         array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
         ARRAY[]::text[]
@@ -818,7 +824,8 @@ GROUP BY
     c.sub, 
     c.created_at, 
     c.front_variants, 
-    c.back_variants
+    c.back_variants,
+    c.image_key
 ORDER BY c.created_at DESC;
 `;
 
@@ -884,7 +891,7 @@ export const GET_DESK_CARDS_FOR_LIBRARY_CLONE = `
     c.sub,
     c.front_variants,
     c.back_variants,
-    c.image_uuid,
+    c.image_key,
     COALESCE(
       array_agg(ce.sentence ORDER BY ce.created_at) FILTER (WHERE ce.id IS NOT NULL),
       ARRAY[]::text[]
@@ -892,7 +899,7 @@ export const GET_DESK_CARDS_FOR_LIBRARY_CLONE = `
   FROM cards.card c
   LEFT JOIN cards.card_examples ce ON ce.card_sub = c.sub
   WHERE c.desk_sub = $1
-  GROUP BY c.id, c.sub, c.front_variants, c.back_variants, c.image_uuid
+  GROUP BY c.id, c.sub, c.front_variants, c.back_variants, c.image_key
   ORDER BY c.created_at ASC
 `;
 

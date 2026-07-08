@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { tokenValidator, optionalTokenValidator } from '../middlewares';
+import { handleCardImageUpload } from '../middlewares/handleCardImageUpload';
 import {
   archivedDeskCtr,
   createCardCtr,
@@ -29,6 +30,8 @@ import {
   updateDeskSettingsCtr,
   updateFeedSettingsCtr,
   updateReviewSettingsCtr,
+  uploadCardImageCtr,
+  deleteCardImageCtr,
 } from '../controllers/cards/cardCtr';
 
 const cards = Router();
@@ -56,6 +59,8 @@ cards.put('/feed/settings', tokenValidator, updateFeedSettingsCtr);
 cards.get('/cards/:sub', tokenValidator, getCardCtr);
 cards.post('/cards/:sub/regenerate-examples', tokenValidator, regenerateCardExamplesCtr);
 cards.put('/cards/:sub', tokenValidator, updateCardCtr);
+cards.post('/cards/:sub/image', tokenValidator, handleCardImageUpload, uploadCardImageCtr);
+cards.delete('/cards/:sub/image', tokenValidator, deleteCardImageCtr);
 cards.delete('/cards/:sub', tokenValidator, deleteCardCtr);
 cards.put('/desks/:sub/restore', tokenValidator, restoreDeskCtr);
 cards.delete('/desks/:sub', tokenValidator, archivedDeskCtr);

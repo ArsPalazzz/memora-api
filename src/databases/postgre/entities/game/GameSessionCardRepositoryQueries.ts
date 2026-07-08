@@ -23,6 +23,7 @@ export const GET_NEXT_IN_SESSION_CARD = `
     END AS "text",
     ds.front_language AS "frontLanguage",
     ds.back_language AS "backLanguage",
+    c.image_key AS "imageKey",
     si.total_cards,
     si.answered_cards + 1 as current_position
   FROM games.session_card sc

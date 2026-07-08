@@ -27,6 +27,8 @@ import userCardPreferencesRepository, {
 import cardDiscoveryRepository, {
   CardDiscoveryRepository,
 } from '../../databases/postgre/entities/game/CardDiscoveryRepository';
+import { mapCardImageUrl } from '../../utils/cardImageUrl';
+import cardImageService from './CardImageService';
 import cardPreferenceRepository, {
   CardPreferenceRepository,
 } from '../../databases/postgre/entities/card/CardPreferenceRepository';
@@ -178,7 +180,7 @@ export class CardService {
     );
   }
 
-  async cloneCardToDesks(originalCard: { id: number; sub: string; front_variants: string[]; back_variants: string[]; image_uuid?: string | null }, deskSubs: string[]) {
+  async cloneCardToDesks(originalCard: { id: number; sub: string; front_variants: string[]; back_variants: string[]; image_key?: string | null }, deskSubs: string[]) {
     if (deskSubs.length === 0) return;
 
     const cardDetails = await this.cardRepository.getCard(originalCard.sub);
@@ -258,7 +260,7 @@ export class CardService {
           deskSub: localDeskSub,
           frontVariants: card.front_variants,
           backVariants: card.back_variants,
-          imageUuid: card.image_uuid ?? undefined,
+          imageKey: card.image_key ?? undefined,
           copyOf: card.id,
         });
 
@@ -322,7 +324,7 @@ export class CardService {
       id: number;
       front_variants: string[];
       back_variants: string[];
-      image_uuid?: string | null;
+      image_key?: string | null;
     },
     targetDeskSub: string,
     examples: string[],
@@ -334,7 +336,7 @@ export class CardService {
       deskSub: targetDeskSub,
       frontVariants: originalCard.front_variants,
       backVariants: originalCard.back_variants,
-      imageUuid: originalCard.image_uuid ?? undefined,
+      imageKey: originalCard.image_key ?? undefined,
       copyOf: originalCard.id,
     };
 
@@ -535,7 +537,11 @@ export class CardService {
 
     const { stats, cards, ...rest } = deskInfo;
 
-    return { ...rest, cards, stats: { ...stats, weeklyStats } };
+    return {
+      ...rest,
+      cards: cards.map((card) => mapCardImageUrl(card)),
+      stats: { ...stats, weeklyStats },
+    };
   }
 
   async getCardsDesk(payload: GetDeskPayload) {
@@ -552,7 +558,9 @@ export class CardService {
       );
     }
 
-    return await this.cardRepository.getDeskCards({ deskSub: desk_sub });
+    return (await this.cardRepository.getDeskCards({ deskSub: desk_sub })).map((card) =>
+      mapCardImageUrl(card)
+    );
   }
 
   async getPublicDesk(params: { deskSub: string; viewerSub?: string; limit?: number; offset?: number }) {
@@ -1003,7 +1011,7 @@ export class CardService {
       throw new NotFoundError(`CardService: card with sub = ${cardSub} not found`);
     }
 
-    return res;
+    return mapCardImageUrl(res);
   }
 
   async updateCard(payload: {
@@ -1054,6 +1062,7 @@ export class CardService {
       );
     }
 
+    await cardImageService.deleteImageForCard(cardSub);
     await this.cardRepository.deleteCard({ cardSub });
   }
 

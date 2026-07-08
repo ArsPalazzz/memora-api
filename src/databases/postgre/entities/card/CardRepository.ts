@@ -86,7 +86,7 @@ interface CreateCardParams {
   deskSub: string;
   frontVariants: string[];
   backVariants: string[];
-  imageUuid?: string;
+  imageKey?: string;
   copyOf?: number;
 }
 
@@ -111,7 +111,7 @@ export class CardRepository extends Table {
           desk_sub,
           front_variants,
           back_variants,
-          image_uuid
+          image_key
         FROM cards.card
         WHERE sub = $1
       `,
@@ -124,7 +124,7 @@ export class CardRepository extends Table {
       desk_sub: string;
       front_variants: string[];
       back_variants: string[];
-      image_uuid?: string;
+      image_key?: string | null;
     }>(query);
   }
 
@@ -164,14 +164,14 @@ export class CardRepository extends Table {
     deskSub: string;
     frontVariants: string[];
     backVariants: string[];
-    imageUuid?: string;
+    imageKey?: string;
     copyOf: number;
   }): Promise<void> {
     const query: Query = {
       name: 'createCardClone',
       text: `
       INSERT INTO cards.card 
-        (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of)
+        (sub, desk_sub, front_variants, back_variants, image_key, copy_of)
       VALUES ($1, $2, $3, $4, $5, $6)
     `,
       values: [
@@ -179,7 +179,7 @@ export class CardRepository extends Table {
         card.deskSub,
         JSON.stringify(card.frontVariants),
         JSON.stringify(card.backVariants),
-        card.imageUuid || null,
+        card.imageKey || null,
         card.copyOf,
       ],
     };
@@ -188,13 +188,13 @@ export class CardRepository extends Table {
   }
 
   async create(params: CreateCardParams) {
-    const { sub, deskSub, frontVariants, backVariants, imageUuid, copyOf } = params;
+    const { sub, deskSub, frontVariants, backVariants, imageKey, copyOf } = params;
 
     const query: Query = {
       name: 'createCard',
       text: `
         INSERT INTO cards.card 
-          (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of, created_at)
+          (sub, desk_sub, front_variants, back_variants, image_key, copy_of, created_at)
         VALUES ($1, $2, $3, $4, $5, $6, NOW())
       `,
       values: [
@@ -202,7 +202,7 @@ export class CardRepository extends Table {
         deskSub,
         JSON.stringify(frontVariants),
         JSON.stringify(backVariants),
-        imageUuid,
+        imageKey ?? null,
         copyOf,
       ],
     };
@@ -876,8 +876,35 @@ export class CardRepository extends Table {
       created_at: string;
       front_variants: string[];
       back_variants: string[];
+      image_key: string | null;
       examples: string[];
     }>(query);
+  }
+
+  async updateImageKey(cardSub: string, imageKey: string | null): Promise<void> {
+    const query: Query = {
+      name: 'updateCardImageKey',
+      text: `UPDATE cards.card SET image_key = $2 WHERE sub = $1`,
+      values: [cardSub, imageKey],
+    };
+
+    await this.updateItems(query);
+  }
+
+  async countCardsWithImageKey(imageKey: string, excludeCardSub?: string): Promise<number> {
+    const query: Query = {
+      name: 'countCardsWithImageKey',
+      text: `
+        SELECT COUNT(*)::int AS count
+        FROM cards.card
+        WHERE image_key = $1
+          AND ($2::uuid IS NULL OR sub != $2)
+      `,
+      values: [imageKey, excludeCardSub ?? null],
+    };
+
+    const result = await this.getItem<{ count: number }>(query);
+    return result?.count ?? 0;
   }
 
   async updateCard(params: { card_sub: string; payload: { front: string[]; back: string[] } }) {
@@ -995,7 +1022,7 @@ export class CardRepository extends Table {
       deskSub: string;
       frontVariants: string[];
       backVariants: string[];
-      imageUuid?: string;
+      imageKey?: string;
       copyOf: number;
     }
   ): Promise<void> {
@@ -1003,7 +1030,7 @@ export class CardRepository extends Table {
       name: 'createCardCloneTx',
       text: `
         INSERT INTO cards.card
-          (sub, desk_sub, front_variants, back_variants, image_uuid, copy_of)
+          (sub, desk_sub, front_variants, back_variants, image_key, copy_of)
         VALUES ($1, $2, $3, $4, $5, $6)
       `,
       values: [
@@ -1011,7 +1038,7 @@ export class CardRepository extends Table {
         card.deskSub,
         JSON.stringify(card.frontVariants),
         JSON.stringify(card.backVariants),
-        card.imageUuid || null,
+        card.imageKey || null,
         card.copyOf,
       ],
     });
@@ -1082,7 +1109,7 @@ export class CardRepository extends Table {
       sub: string;
       front_variants: string[];
       back_variants: string[];
-      image_uuid: string | null;
+      image_key: string | null;
       examples: string[];
     }>(query);
   }

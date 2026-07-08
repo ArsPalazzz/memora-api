@@ -1,14 +1,7 @@
+import { getStoragePublicUrl } from './storageUrl';
+
 export function getAvatarPublicUrl(avatarKey: string | null | undefined): string | null {
-  if (!avatarKey) {
-    return null;
-  }
-
-  const bucket = process.env.FIREBASE_STORAGE_BUCKET;
-  if (!bucket) {
-    return null;
-  }
-
-  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(avatarKey)}?alt=media`;
+  return getStoragePublicUrl(avatarKey);
 }
 
 export function mapAvatarUrl<T extends { avatar_key?: string | null }>(

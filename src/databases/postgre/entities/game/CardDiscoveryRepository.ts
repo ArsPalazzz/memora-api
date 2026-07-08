@@ -36,7 +36,7 @@ candidate_cards AS (
     c.sub,
     c.front_variants,
     c.back_variants,
-    c.image_uuid,
+    c.image_key,
     c.global_shown_count,
     c.global_like_count,
     c.global_answer_count,
@@ -135,7 +135,7 @@ SELECT
       END
     ELSE sc.back_variants
   END as back_variants,
-  sc.image_uuid,
+  sc.image_key,
   sc.global_shown_count,
   sc.global_like_count,
   sc.global_answer_count,
@@ -166,7 +166,7 @@ ORDER BY sc.final_score DESC
       sub: string;
       front_variants: string[];
       back_variants: string[];
-      image_uuid?: string;
+      image_key?: string | null;
       global_shown_count: number;
       global_like_count: number;
       global_answer_count: number;

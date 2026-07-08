@@ -63,6 +63,7 @@ export class GameSessionCardRepository extends Table {
       text: string[];
       frontLanguage: string;
       backLanguage: string;
+      imageKey: string | null;
       total_cards: number;
       current_position: number;
     }>(query);

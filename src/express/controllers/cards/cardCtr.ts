@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import cardService from '../../../services/cards/CardService';
+import cardImageService from '../../../services/cards/CardImageService';
 import userService from '../../../services/users/UserService';
 import { ajv } from '../../../utils';
 import createError from 'http-errors';
@@ -19,7 +20,7 @@ import * as updateCardBodyDtoSchema from './schemas/updateCardBodyDto.json';
 import * as updateDeskParamsDtoSchema from './schemas/updateDeskParamsDto.json';
 import { CARD_ORIENTATION, LanguageCode } from '../../../services/cards/card.const';
 import { StudyMode } from '../../../services/games/studyMode.const';
-import { ForbiddenError, NotFoundError, ConflictError } from '../../../exceptions';
+import { ForbiddenError, NotFoundError, ConflictError, BadRequestError } from '../../../exceptions';
 
 const validateCreateCardDto = ajv.compile(createCardDtoSchema);
 const validateCreateDeskDto = ajv.compile(createDeskDtoSchema);
@@ -714,6 +715,81 @@ export async function updateReviewSettingsCtr(req: Request, res: Response, next:
 
     res.sendStatus(204);
   } catch (e) {
+    next(e);
+  }
+}
+
+export async function uploadCardImageCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect card params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+    const file = req.file;
+
+    if (!file) {
+      return next(createError(400, 'Card image is required'));
+    }
+
+    await userService.existProfile({ sub: creatorSub });
+
+    const imageUrl = await cardImageService.uploadCardImage({
+      cardSub: params.sub,
+      creatorSub,
+      fileBuffer: file.buffer,
+    });
+
+    res.json({ image_url: imageUrl });
+  } catch (e: unknown) {
+    if (e instanceof BadRequestError) {
+      return next(createError(400, e.message));
+    }
+    if (e instanceof ForbiddenError) {
+      return next(createError(403, e.message));
+    }
+    if (e instanceof NotFoundError) {
+      return next(createError(404, e.message));
+    }
+    next(e);
+  }
+}
+
+export async function deleteCardImageCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect card params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await userService.existProfile({ sub: creatorSub });
+
+    await cardImageService.deleteCardImage({
+      cardSub: params.sub,
+      creatorSub,
+    });
+
+    res.json({ image_url: null });
+  } catch (e: unknown) {
+    if (e instanceof ForbiddenError) {
+      return next(createError(403, e.message));
+    }
+    if (e instanceof NotFoundError) {
+      return next(createError(404, e.message));
+    }
     next(e);
   }
 }

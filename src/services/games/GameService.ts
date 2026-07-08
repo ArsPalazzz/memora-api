@@ -5,6 +5,7 @@ import gameSessionRepository, {
   GameSessionRepository,
 } from '../../databases/postgre/entities/game/GameSessionRepository';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../../exceptions';
+import { mapCardImageUrl } from '../../utils/cardImageUrl';
 import cardService, { CardService } from '../cards/CardService';
 import reviewService, { ReviewService } from '../reviews/ReviewService';
 import { v4 as uuidV4 } from 'uuid';
@@ -129,11 +130,12 @@ export class GameService {
 
     return {
       mode: mode ?? DEFAULT_DESK_STUDY_MODE,
-      card: {
+      card: mapCardImageUrl({
         sub: card.sub,
         text: card.text,
+        imageKey: card.imageKey,
         ...speechLanguages,
-      },
+      }),
       progress: {
         current: card.current_position,
         total: card.total_cards,
@@ -309,7 +311,7 @@ export class GameService {
           sub: c.sub,
           text: c.front_variants,
           backVariants: c.back_variants,
-          imageUuid: c.image_uuid,
+          image_url: mapCardImageUrl({ image_key: c.image_key }).image_url,
           deskTitle: c.desk_title,
           deskSub: c.desk_sub,
           creatorNickname: c.creator_nickname ?? 'Anonymous',
