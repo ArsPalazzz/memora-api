@@ -6,7 +6,7 @@ const transports = [consoleTransport, lokiTransport];
 
 const logger = createLogger({
   defaultMeta: { service: serviceName },
-  levels: config.syslog.levels,
+  levels: config.npm.levels,
   transports,
 });
 
