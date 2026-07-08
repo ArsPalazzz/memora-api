@@ -209,7 +209,12 @@ export async function createCardCtr(req: Request, res: Response, next: NextFunct
       );
     }
 
-    const payload = req.body as { front: string[]; back: string[]; desk_sub: string };
+    const payload = req.body as {
+      front: string[];
+      back: string[];
+      desk_sub: string;
+      examples?: string[];
+    };
     const creatorSub = res.locals.userSub as string;
 
     await userService.existProfile({ sub: creatorSub });

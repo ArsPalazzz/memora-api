@@ -614,14 +614,25 @@ export class CardService {
     };
   }
 
-  async createCard(payload: { front: string[]; back: string[]; desk_sub: string }) {
+  async createCard(payload: {
+    front: string[];
+    back: string[];
+    desk_sub: string;
+    examples?: string[];
+  }) {
     const deskExist = await this.cardRepository.existDesk({ sub: payload.desk_sub });
     if (!deskExist) {
       throw new NotFoundError(`CardService: desk with sub = ${payload.desk_sub} not found`);
     }
 
+    const { examples, ...cardPayload } = payload;
     const sub = uuidV4();
-    await this.cardRepository.createCard({ sub, ...payload });
+    await this.cardRepository.createCard({ sub, ...cardPayload });
+
+    if (examples && examples.length > 0) {
+      await this.cardExampleRepository.createMany({ cardSub: sub, sentences: examples });
+      return sub;
+    }
 
     const deskSettings = await this.deskSettingsRepository.getByDeskSub(payload.desk_sub);
     const languageConfig = {
