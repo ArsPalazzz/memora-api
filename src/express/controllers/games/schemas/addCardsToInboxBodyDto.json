@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "required": ["cardSubs"],
+  "additionalProperties": false,
+  "properties": {
+    "cardSubs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 50,
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  }
+}

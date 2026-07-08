@@ -9,7 +9,7 @@ import gameSessionCardRepository, {
 } from '../../../databases/postgre/entities/game/GameSessionCardRepository';
 import { StudyMode } from '../studyMode.const';
 import { AnswerCardResult } from '../studyMode.types';
-import { checkAnswerCorrectness } from '../answer.utils';
+import { checkAnswerCorrectness } from '../../../utils/answerGrading';
 import {
   AnswerCardParams,
   AnswerFeedCardParams,

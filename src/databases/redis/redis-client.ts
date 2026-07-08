@@ -6,7 +6,7 @@ import { RedisInstance } from './redis.types';
 export default class RedisClient {
   private static instance: RedisInstance;
 
-  static async createConnection(url: string) {
+  static async createConnection(url: string): Promise<RedisInstance | null> {
     if (RedisClient.instance) {
       return this.instance;
     }
@@ -20,13 +20,14 @@ export default class RedisClient {
 
       this.instance.on('ready', () => logger.info('Redis client is ready'));
       this.instance.on('end', () => logger.info('Redis connection is closed'));
-      this.instance.on('reconnecting', (o) => {
+      this.instance.on('reconnecting', () => {
         logger.info('Redis client is reconnecting');
       });
 
       return this.instance;
     } catch (e) {
-      logger.error('Cannot create connection to Redis', e);
+      logger.warn('Cannot create connection to Redis', e);
+      return null;
     }
   }
 

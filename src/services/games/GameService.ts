@@ -17,11 +17,7 @@ import {
   DEFAULT_REVIEW_STUDY_MODE,
   normalizeFeedStudyMode,
 } from './studyMode.const';
-import {
-  DEFAULT_BACK_LANGUAGE,
-  DEFAULT_FRONT_LANGUAGE,
-  LanguageCode,
-} from '../cards/card.const';
+import { resolveCardSpeechLanguages } from './cardLanguage.utils';
 
 export class GameService {
   constructor(
@@ -122,7 +118,7 @@ export class GameService {
     }
 
     const mode = await this.gameSessionRepository.getSessionMode(sessionId);
-    const speechLanguages = this.resolveCardSpeechLanguages(
+    const speechLanguages = resolveCardSpeechLanguages(
       card.direction as 'front_to_back' | 'back_to_front',
       card.frontLanguage,
       card.backLanguage
@@ -301,7 +297,7 @@ export class GameService {
 
     return {
       cards: cards.map((c) => {
-        const speechLanguages = this.resolveCardSpeechLanguages(
+        const speechLanguages = resolveCardSpeechLanguages(
           c.card_direction,
           c.front_language,
           c.back_language
@@ -411,6 +407,28 @@ export class GameService {
   }
 
   async addCardToInbox(userSub: string, cardSub: string) {
+    const added = await this.addCardToInboxIfMissing(userSub, cardSub);
+    return { added: added ? 1 : 0, skipped: added ? 0 : 1 };
+  }
+
+  async addCardsToInbox(userSub: string, cardSubs: string[]) {
+    const uniqueSubs = [...new Set(cardSubs)];
+    let added = 0;
+    let skipped = 0;
+
+    for (const cardSub of uniqueSubs) {
+      const wasAdded = await this.addCardToInboxIfMissing(userSub, cardSub);
+      if (wasAdded) {
+        added += 1;
+      } else {
+        skipped += 1;
+      }
+    }
+
+    return { added, skipped };
+  }
+
+  private async addCardToInboxIfMissing(userSub: string, cardSub: string): Promise<boolean> {
     const inboxDeskSub = await this.cardService.ensureInboxDesk(userSub);
 
     const originalCard = await this.cardService.getCardBySub(cardSub);
@@ -420,10 +438,11 @@ export class GameService {
 
     const currentDesksWithCard = await this.cardService.getDesksWithCard(originalCard.id);
     if (currentDesksWithCard.includes(inboxDeskSub)) {
-      return;
+      return false;
     }
 
     await this.cardService.cloneCardToDesks(originalCard, [inboxDeskSub]);
+    return true;
   }
 
   private async resolveHandler(sessionId: string) {
@@ -461,21 +480,6 @@ export class GameService {
     if (deskOrientation === 'reversed') return 'back_to_front';
 
     return Math.random() < 0.5 ? 'front_to_back' : 'back_to_front';
-  }
-
-  private resolveCardSpeechLanguages(
-    direction: 'front_to_back' | 'back_to_front',
-    frontLanguage?: string | null,
-    backLanguage?: string | null
-  ): { promptLanguage: LanguageCode; answerLanguage: LanguageCode } {
-    const front = (frontLanguage as LanguageCode) || DEFAULT_FRONT_LANGUAGE;
-    const back = (backLanguage as LanguageCode) || DEFAULT_BACK_LANGUAGE;
-
-    if (direction === 'front_to_back') {
-      return { promptLanguage: front, answerLanguage: back };
-    }
-
-    return { promptLanguage: back, answerLanguage: front };
   }
 }
 

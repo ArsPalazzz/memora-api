@@ -1108,6 +1108,9 @@ export class CardService {
     }
 
     await this.cardRepository.archiveDesk({ desk_sub: deskSub });
+
+    const duelService = (await import('../../services/games/duel/DuelService')).default;
+    await duelService.cancelActiveDuelsForDesk(deskSub);
   }
 
   async restoreDesk(payload: { deskSub: string; creatorSub: string }) {

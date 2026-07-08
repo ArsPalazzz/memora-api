@@ -5,6 +5,7 @@ import { port, serviceName, postgresOptions } from './config';
 import NotificationScheduler from './schedule/NotificationScheduler';
 import StreakScheduler from './schedule/StreakScheduler';
 import LeagueNotificationScheduler from './schedule/LeagueNotificationScheduler';
+import { attachSocketServer, closeSocketServer } from './socket';
 
 let notificationScheduler: NotificationScheduler | null = null;
 let streakScheduler: StreakScheduler | null = null;
@@ -39,6 +40,12 @@ const shutdown = async () => {
   }
 
   httpServer.close(async () => {
+    try {
+      await closeSocketServer();
+    } catch (error) {
+      logger.error('Error closing socket server:', error);
+    }
+
     await Postgres.close();
     logger.info('👋 All requests stopped, shutting down');
     process.exit();
@@ -48,6 +55,8 @@ const shutdown = async () => {
 const startServer = async () => {
   try {
     await Postgres.createConnection(postgresOptions);
+    await attachSocketServer(httpServer);
+
     httpServer
       .listen(port, '0.0.0.0', () =>
         logger.info(`🚀 :: ${serviceName} is running on port :: ${port}`)
