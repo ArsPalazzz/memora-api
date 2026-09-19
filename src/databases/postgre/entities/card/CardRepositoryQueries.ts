@@ -190,7 +190,11 @@ export const EXIST_FOLDER_BY_SUB = `
 `;
 
 export const ADD_DESK_TO_FOLDER = `
-  INSERT INTO cards.folder_desk (folder_sub, desk_sub) VALUES ($1,$2);
+  INSERT INTO cards.folder_desk (folder_sub, desk_sub)
+  SELECT $1, $2
+  WHERE NOT EXISTS (
+    SELECT 1 FROM cards.folder_desk WHERE desk_sub = $2
+  );
 `;
 
 export const HAVE_ACCESS_TO_FOLDER = `
@@ -313,9 +317,10 @@ export const GET_FOLDER_CONTENTS = `
         INNER JOIN folder_tree ft ON fc.parent_folder_sub = ft.sub
         WHERE fc.creator_sub = $2
       )
-      SELECT COUNT(DISTINCT fd.desk_sub)
+      SELECT COUNT(DISTINCT d.sub)
       FROM folder_tree ft
       LEFT JOIN cards.folder_desk fd ON fd.folder_sub = ft.sub
+      LEFT JOIN cards.desk d ON d.sub = fd.desk_sub AND d.status = 'active'
     ) AS "deskCount",
     
     -- Папки-потомки (включая вложенные)
@@ -393,7 +398,7 @@ export const GET_FOLDER_INFO = `
     f.description,
     f.parent_folder_sub AS "parentFolderSub",
     f.created_at AS "createdAt",
-    COUNT(DISTINCT fd.desk_sub) AS "deskCount",
+    COUNT(DISTINCT d.sub) AS "deskCount",
     (
       SELECT COUNT(*)
       FROM cards.folder fc
@@ -401,6 +406,7 @@ export const GET_FOLDER_INFO = `
     ) AS "childCount"
   FROM cards.folder f
   LEFT JOIN cards.folder_desk fd ON fd.folder_sub = f.sub
+  LEFT JOIN cards.desk d ON d.sub = fd.desk_sub AND d.status = 'active'
   WHERE f.sub = $1
   GROUP BY f.sub, f.title, f.description, f.parent_folder_sub, f.created_at;
 `;
@@ -437,7 +443,7 @@ export const GET_ROOT_FOLDERS = `
     ft_root.parent_folder_sub,
     ft_root.created_at AS "createdAt",
     -- Считаем ВСЕ доски во ВСЕХ папках дерева (включая корневую и все вложенные)
-    COUNT(DISTINCT fd.desk_sub) AS "deskCount",
+    COUNT(DISTINCT d.sub) AS "deskCount",
     -- Считаем ВСЕ папки в дереве (включая корневую)
     COUNT(DISTINCT ft_all.sub) - 1 AS "childCount"  -- -1 чтобы исключить саму корневую папку
   FROM cards.folder ft_root
@@ -445,6 +451,7 @@ export const GET_ROOT_FOLDERS = `
   LEFT JOIN folder_tree ft_all ON ft_all.root_folder_sub = ft_root.sub
   -- Присоединяем все доски во всех папках дерева
   LEFT JOIN cards.folder_desk fd ON fd.folder_sub = ft_all.sub
+  LEFT JOIN cards.desk d ON d.sub = fd.desk_sub AND d.status = 'active'
   WHERE ft_root.creator_sub = $1
     AND ft_root.parent_folder_sub IS NULL
   GROUP BY 
@@ -864,6 +871,95 @@ export const GET_DESK_TITLE = `
 
 export const REMOVE_DESK_FROM_FOLDERS = `
   DELETE FROM cards.folder_desk WHERE desk_sub = $1;
+`;
+
+export const UPSERT_DESK_FOLDER_SNAPSHOT = `
+  INSERT INTO cards.desk_folder_snapshot (
+    desk_sub,
+    folder_sub,
+    title,
+    description,
+    parent_folder_sub,
+    creator_sub
+  )
+  SELECT
+    $2,
+    f.sub,
+    f.title,
+    f.description,
+    f.parent_folder_sub,
+    f.creator_sub
+  FROM cards.folder f
+  WHERE f.sub = $1
+  ON CONFLICT (desk_sub) DO UPDATE SET
+    folder_sub = EXCLUDED.folder_sub,
+    title = EXCLUDED.title,
+    description = EXCLUDED.description,
+    parent_folder_sub = EXCLUDED.parent_folder_sub,
+    creator_sub = EXCLUDED.creator_sub;
+`;
+
+export const SNAPSHOT_ARCHIVED_DESKS_IN_FOLDER = `
+  INSERT INTO cards.desk_folder_snapshot (
+    desk_sub,
+    folder_sub,
+    title,
+    description,
+    parent_folder_sub,
+    creator_sub
+  )
+  SELECT
+    fd.desk_sub,
+    f.sub,
+    f.title,
+    f.description,
+    f.parent_folder_sub,
+    f.creator_sub
+  FROM cards.folder_desk fd
+  INNER JOIN cards.folder f ON f.sub = fd.folder_sub
+  INNER JOIN cards.desk d ON d.sub = fd.desk_sub
+  WHERE fd.folder_sub = $1
+    AND d.status = 'archived'
+  ON CONFLICT (desk_sub) DO UPDATE SET
+    folder_sub = EXCLUDED.folder_sub,
+    title = EXCLUDED.title,
+    description = EXCLUDED.description,
+    parent_folder_sub = EXCLUDED.parent_folder_sub,
+    creator_sub = EXCLUDED.creator_sub;
+`;
+
+export const GET_DESK_FOLDER_SNAPSHOT = `
+  SELECT
+    desk_sub AS "deskSub",
+    folder_sub AS "folderSub",
+    title,
+    description,
+    parent_folder_sub AS "parentFolderSub",
+    creator_sub AS "creatorSub"
+  FROM cards.desk_folder_snapshot
+  WHERE desk_sub = $1;
+`;
+
+export const DELETE_DESK_FOLDER_SNAPSHOT = `
+  DELETE FROM cards.desk_folder_snapshot WHERE desk_sub = $1;
+`;
+
+export const COUNT_ACTIVE_DESKS_IN_FOLDER = `
+  SELECT COUNT(*)::int AS count
+  FROM cards.folder_desk fd
+  INNER JOIN cards.desk d ON d.sub = fd.desk_sub
+  WHERE fd.folder_sub = $1
+    AND d.status = 'active';
+`;
+
+export const COUNT_CHILD_FOLDERS = `
+  SELECT COUNT(*)::int AS count
+  FROM cards.folder
+  WHERE parent_folder_sub = $1;
+`;
+
+export const DELETE_FOLDER = `
+  DELETE FROM cards.folder WHERE sub = $1;
 `;
 
 export const DELETE_CARDS_BY_DESK_SUB = `

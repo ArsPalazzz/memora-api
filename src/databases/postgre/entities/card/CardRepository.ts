@@ -3,7 +3,11 @@ import Postgres, { Query } from '../../index';
 import {
   ADD_DESK_TO_FOLDER,
   ARCHIVE_DESK,
+  COUNT_ACTIVE_DESKS_IN_FOLDER,
+  COUNT_CHILD_FOLDERS,
   DELETE_CARD,
+  DELETE_DESK_FOLDER_SNAPSHOT,
+  DELETE_FOLDER,
   EXIST_CARD,
   EXIST_CARD_BY_SUB,
   EXIST_DESK,
@@ -29,6 +33,7 @@ import {
   GET_FOLDER_CONTENTS,
   GET_FOLDER_INFO,
   GET_DESK_FOLDER,
+  GET_DESK_FOLDER_SNAPSHOT,
   GET_DESK_TITLE,
   GET_FOLDER_PARENT,
   GET_FOLDER_TREE,
@@ -51,6 +56,8 @@ import {
   GET_DESK_SUB_BY_TITLE_IN_FOLDER,
   REMOVE_DESK_FROM_FOLDERS,
   RESTORE_DESK,
+  SNAPSHOT_ARCHIVED_DESKS_IN_FOLDER,
+  UPSERT_DESK_FOLDER_SNAPSHOT,
   UPDATE_CARD,
   UPDATE_DESK,
   UPDATE_DESK_WITH_VISIBILITY,
@@ -665,7 +672,13 @@ export class CardRepository extends Table {
       values: [folderSub, deskSub],
     };
 
-    return this.insertItem(query);
+    await this.runQuery(query);
+
+    await this.runQuery({
+      name: 'upsertDeskFolderSnapshot',
+      text: UPSERT_DESK_FOLDER_SNAPSHOT,
+      values: [folderSub, deskSub],
+    });
   }
 
   async haveAccessToFolder(folderSub: string, userSub: string) {
@@ -779,7 +792,75 @@ export class CardRepository extends Table {
       values: [deskSub],
     };
 
-    return this.updateItems(query);
+    await this.updateItems(query);
+
+    await this.runQuery({
+      name: 'deleteDeskFolderSnapshot',
+      text: DELETE_DESK_FOLDER_SNAPSHOT,
+      values: [deskSub],
+    });
+  }
+
+  async getDeskFolderSnapshot(deskSub: string) {
+    const query: Query = {
+      name: 'getDeskFolderSnapshot',
+      text: GET_DESK_FOLDER_SNAPSHOT,
+      values: [deskSub],
+    };
+
+    return this.getItem<{
+      deskSub: string;
+      folderSub: string;
+      title: string;
+      description: string | null;
+      parentFolderSub: string | null;
+      creatorSub: string;
+    }>(query);
+  }
+
+  async countActiveDesksInFolder(folderSub: string) {
+    const query: Query = {
+      name: 'countActiveDesksInFolder',
+      text: COUNT_ACTIVE_DESKS_IN_FOLDER,
+      values: [folderSub],
+    };
+
+    const result = await this.getItem<{ count: number }>(query);
+    return result?.count ?? 0;
+  }
+
+  async countChildFolders(folderSub: string) {
+    const query: Query = {
+      name: 'countChildFolders',
+      text: COUNT_CHILD_FOLDERS,
+      values: [folderSub],
+    };
+
+    const result = await this.getItem<{ count: number }>(query);
+    return result?.count ?? 0;
+  }
+
+  async deleteFolder(folderSub: string) {
+    const tx = await this.startTransaction();
+
+    try {
+      await tx.query({
+        name: 'snapshotArchivedDesksInFolder',
+        text: SNAPSHOT_ARCHIVED_DESKS_IN_FOLDER,
+        values: [folderSub],
+      });
+
+      await tx.query({
+        name: 'deleteFolder',
+        text: DELETE_FOLDER,
+        values: [folderSub],
+      });
+
+      await tx.commit();
+    } catch (e) {
+      await tx.rollback();
+      throw e;
+    }
   }
 
   async updateFolderParent(folderSub: string, parentFolderSub: string | null) {

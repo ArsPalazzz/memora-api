@@ -946,6 +946,123 @@ export class CardService {
     await this.cardRepository.updateFolderParent(folderSub, parentFolderSub);
   }
 
+  async deleteFolder(payload: { folderSub: string; creatorSub: string }) {
+    const { folderSub, creatorSub } = payload;
+
+    const folderExists = await this.cardRepository.existFolderBySub(folderSub);
+    if (!folderExists) {
+      throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToFolder(folderSub, creatorSub);
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `User with sub = ${creatorSub} don't have access to folder with sub = ${folderSub}`
+      );
+    }
+
+    const [childFolderCount, activeDeskCount] = await Promise.all([
+      this.cardRepository.countChildFolders(folderSub),
+      this.cardRepository.countActiveDesksInFolder(folderSub),
+    ]);
+
+    if (childFolderCount > 0 || activeDeskCount > 0) {
+      throw new BadRequestError(
+        'Folder can be deleted only if it is empty or contains archived decks only'
+      );
+    }
+
+    await this.cardRepository.deleteFolder(folderSub);
+  }
+
+  async ensureDeskFolderExists(deskSub: string) {
+    const currentFolderSub = await this.cardRepository.getDeskFolderSub(deskSub);
+    if (currentFolderSub) {
+      return;
+    }
+
+    const snapshot = await this.cardRepository.getDeskFolderSnapshot(deskSub);
+    if (!snapshot) {
+      return;
+    }
+
+    const folderExists = await this.cardRepository.existFolderBySub(snapshot.folderSub);
+    if (folderExists) {
+      await this.cardRepository.addDeskToFolder(deskSub, snapshot.folderSub);
+      return;
+    }
+
+    let parentFolderSub = snapshot.parentFolderSub;
+    if (parentFolderSub) {
+      const parentExists = await this.cardRepository.existFolderBySub(parentFolderSub);
+      if (!parentExists) {
+        parentFolderSub = null;
+      }
+    }
+
+    const title = await this.nextAvailableFolderTitle({
+      title: snapshot.title,
+      parentFolderSub,
+      creatorSub: snapshot.creatorSub,
+    });
+
+    try {
+      await this.cardRepository.createFolder({
+        sub: snapshot.folderSub,
+        title,
+        description: snapshot.description ?? '',
+        creatorSub: snapshot.creatorSub,
+        parentFolderSub,
+      });
+    } catch (error) {
+      const exists = await this.cardRepository.existFolderBySub(snapshot.folderSub);
+      if (!exists) {
+        throw error;
+      }
+    }
+
+    await this.cardRepository.addDeskToFolder(deskSub, snapshot.folderSub);
+  }
+
+  private async nextAvailableFolderTitle(payload: {
+    title: string;
+    parentFolderSub: string | null;
+    creatorSub: string;
+  }) {
+    const { parentFolderSub, creatorSub } = payload;
+    const baseTitle = payload.title;
+
+    const titleTaken = async (title: string) => {
+      if (parentFolderSub) {
+        return this.cardRepository.existFolderWithTitleAndParent({
+          title,
+          folderSub: parentFolderSub,
+          creatorSub,
+        });
+      }
+
+      return this.cardRepository.existFolderWithTitle({ title, creatorSub });
+    };
+
+    if (!(await titleTaken(baseTitle))) {
+      return baseTitle;
+    }
+
+    const restoredTitle = `${baseTitle} (restored)`;
+    if (!(await titleTaken(restoredTitle))) {
+      return restoredTitle;
+    }
+
+    for (let index = 2; index < 50; index += 1) {
+      const candidate = `${baseTitle} (${index})`;
+      if (!(await titleTaken(candidate))) {
+        return candidate;
+      }
+    }
+
+    return `${baseTitle} (${Date.now()})`;
+  }
+
   async updateDesk(payload: {
     deskSub: string;
     body: { title: string; description: string; visibility?: DeskVisibility };
@@ -1119,6 +1236,7 @@ export class CardService {
     }
 
     await this.cardRepository.archiveDesk({ desk_sub: deskSub });
+    await this.ensureDeskFolderExists(deskSub);
 
     const duelService = (await import('../../services/games/duel/DuelService')).default;
     await duelService.cancelActiveDuelsForDesk(deskSub);
@@ -1141,6 +1259,7 @@ export class CardService {
       );
     }
 
+    await this.ensureDeskFolderExists(deskSub);
     await this.cardRepository.restoreDesk({ desk_sub: deskSub });
   }
 

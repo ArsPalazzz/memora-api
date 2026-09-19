@@ -378,6 +378,31 @@ export async function moveFolderToParentCtr(req: Request, res: Response, next: N
   }
 }
 
+export async function deleteFolderCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect folder params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const creatorSub = res.locals.userSub as string;
+
+    await cardService.deleteFolder({
+      folderSub: params.sub,
+      creatorSub,
+    });
+
+    res.json({ deleted: true });
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function createDeskCtr(req: Request, res: Response, next: NextFunction) {
   try {
     if (!validateCreateDeskDto(req.body)) {

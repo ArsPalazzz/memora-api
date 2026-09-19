@@ -7,6 +7,7 @@ import {
   createDeskCtr,
   createFolderCtr,
   deleteCardCtr,
+  deleteFolderCtr,
   getArchivedDesksCtr,
   getCardCtr,
   getCardsCtr,
@@ -48,6 +49,7 @@ cards.get('/folders/:sub', tokenValidator, getFolderInfoCtr);
 cards.get('/folders/:sub/contents', tokenValidator, getFolderContentsCtr);
 cards.post('/folders', tokenValidator, createFolderCtr);
 cards.put('/folders/:sub/parent', tokenValidator, moveFolderToParentCtr);
+cards.delete('/folders/:sub', tokenValidator, deleteFolderCtr);
 cards.post('/desks/create', tokenValidator, createDeskCtr);
 cards.get('/desks/:sub/public', optionalTokenValidator, getPublicDeskCtr);
 cards.post('/desks/:sub/add-to-library', tokenValidator, addDeskToLibraryCtr);
