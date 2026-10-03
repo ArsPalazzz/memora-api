@@ -1002,7 +1002,7 @@ export class CardService {
       );
     }
 
-    const alreadyPinned = await this.pinnedFolderRepository.exists(userSub, folderSub);
+    const alreadyPinned = await this.pinnedFolderRepository.isPinned(userSub, folderSub);
     if (alreadyPinned) {
       return { pinned: true };
     }

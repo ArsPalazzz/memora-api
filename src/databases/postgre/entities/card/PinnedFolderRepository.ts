@@ -30,7 +30,7 @@ export class PinnedFolderRepository extends Table {
     return row?.count ?? 0;
   }
 
-  async exists(userSub: string, folderSub: string) {
+  async isPinned(userSub: string, folderSub: string): Promise<boolean> {
     const query: Query = {
       name: 'existPinnedFolder',
       text: EXIST_PINNED_FOLDER,
