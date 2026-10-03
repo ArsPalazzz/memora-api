@@ -22,6 +22,9 @@ import {
   getFolderInfoCtr,
   getFoldersCtr,
   getFoldersFlatCtr,
+  getPinnedFoldersCtr,
+  pinFolderCtr,
+  unpinFolderCtr,
   moveDeskToFolderCtr,
   moveFolderToParentCtr,
   regenerateCardExamplesCtr,
@@ -45,9 +48,12 @@ cards.get('/me/library/sources', tokenValidator, getLibrarySourcesCtr);
 cards.post('/cards/create', tokenValidator, createCardCtr);
 cards.get('/folders', tokenValidator, getFoldersCtr);
 cards.get('/folders/flat', tokenValidator, getFoldersFlatCtr);
+cards.get('/folders/pinned', tokenValidator, getPinnedFoldersCtr);
 cards.get('/folders/:sub', tokenValidator, getFolderInfoCtr);
 cards.get('/folders/:sub/contents', tokenValidator, getFolderContentsCtr);
 cards.post('/folders', tokenValidator, createFolderCtr);
+cards.post('/folders/:sub/pin', tokenValidator, pinFolderCtr);
+cards.delete('/folders/:sub/pin', tokenValidator, unpinFolderCtr);
 cards.put('/folders/:sub/parent', tokenValidator, moveFolderToParentCtr);
 cards.delete('/folders/:sub', tokenValidator, deleteFolderCtr);
 cards.post('/desks/create', tokenValidator, createDeskCtr);

@@ -9,7 +9,7 @@ import userCardSrsRepository, {
 } from '../../databases/postgre/entities/card/UserCardSrsRepository';
 import { PgTransaction } from '../../databases/postgre/entities/Table';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../../exceptions';
-import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, DESK_PREVIEW_CARD_LIMIT, DESK_VISIBILITY, DeskVisibility, INBOX_DESK_DESCRIPTION, INBOX_DESK_TITLE, canAddDeskToLibrary, canViewDeskVisibility, LANGUAGE_NAMES, LanguageCode, visibilityToLegacyPublic } from './card.const';
+import { CARD_ORIENTATION, CARDS_PER_SESSION_LIMIT, DEFAULT_BACK_LANGUAGE, DEFAULT_EXAMPLE_LANGUAGE, DEFAULT_FRONT_LANGUAGE, DESK_PREVIEW_CARD_LIMIT, DESK_VISIBILITY, DeskVisibility, INBOX_DESK_DESCRIPTION, INBOX_DESK_TITLE, MAX_PINNED_FOLDERS, canAddDeskToLibrary, canViewDeskVisibility, LANGUAGE_NAMES, LanguageCode, visibilityToLegacyPublic } from './card.const';
 import { StudyMode, DEFAULT_DESK_STUDY_MODE } from '../games/studyMode.const';
 import { Folder, FolderTree, GetDeskPayload } from './card.interfaces';
 import { v4 as uuidV4 } from 'uuid';
@@ -44,6 +44,9 @@ import deskLibraryRepository, {
 import friendshipRepository, {
   FriendshipRepository,
 } from '../../databases/postgre/entities/user/FriendshipRepository';
+import pinnedFolderRepository, {
+  PinnedFolderRepository,
+} from '../../databases/postgre/entities/card/PinnedFolderRepository';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -60,7 +63,8 @@ export class CardService {
     private readonly cardDiscoveryRepository: CardDiscoveryRepository,
     private readonly cardPreferenceRepository: CardPreferenceRepository,
     private readonly deskLibraryRepository: DeskLibraryRepository,
-    private readonly friendshipRepository: FriendshipRepository
+    private readonly friendshipRepository: FriendshipRepository,
+    private readonly pinnedFolderRepository: PinnedFolderRepository
   ) {}
 
   async getAllCards(): Promise<any> {
@@ -975,6 +979,62 @@ export class CardService {
     await this.cardRepository.deleteFolder(folderSub);
   }
 
+  async getPinnedFolders(userSub: string) {
+    const rows = await this.pinnedFolderRepository.listByUserSub(userSub);
+    return rows.map((row) => ({
+      folderSub: row.folder_sub,
+      title: row.title,
+    }));
+  }
+
+  async pinFolder(payload: { folderSub: string; userSub: string }) {
+    const { folderSub, userSub } = payload;
+
+    const folderExists = await this.cardRepository.existFolderBySub(folderSub);
+    if (!folderExists) {
+      throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToFolder(folderSub, userSub);
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `User with sub = ${userSub} don't have access to folder with sub = ${folderSub}`
+      );
+    }
+
+    const alreadyPinned = await this.pinnedFolderRepository.exists(userSub, folderSub);
+    if (alreadyPinned) {
+      return { pinned: true };
+    }
+
+    const count = await this.pinnedFolderRepository.countByUserSub(userSub);
+    if (count >= MAX_PINNED_FOLDERS) {
+      throw new BadRequestError(`Max ${MAX_PINNED_FOLDERS} pinned folders`);
+    }
+
+    await this.pinnedFolderRepository.pin(userSub, folderSub);
+    return { pinned: true };
+  }
+
+  async unpinFolder(payload: { folderSub: string; userSub: string }) {
+    const { folderSub, userSub } = payload;
+
+    const folderExists = await this.cardRepository.existFolderBySub(folderSub);
+    if (!folderExists) {
+      throw new NotFoundError(`Folder with sub = ${folderSub} not found`);
+    }
+
+    const haveAccess = await this.cardRepository.haveAccessToFolder(folderSub, userSub);
+    if (!haveAccess) {
+      throw new ForbiddenError(
+        `User with sub = ${userSub} don't have access to folder with sub = ${folderSub}`
+      );
+    }
+
+    await this.pinnedFolderRepository.unpin(userSub, folderSub);
+    return { pinned: false };
+  }
+
   async ensureDeskFolderExists(deskSub: string) {
     const currentFolderSub = await this.cardRepository.getDeskFolderSub(deskSub);
     if (currentFolderSub) {
@@ -1580,5 +1640,6 @@ export default new CardService(
   cardDiscoveryRepository,
   cardPreferenceRepository,
   deskLibraryRepository,
-  friendshipRepository
+  friendshipRepository,
+  pinnedFolderRepository
 );

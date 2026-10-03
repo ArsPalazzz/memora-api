@@ -308,6 +308,64 @@ export async function getFoldersFlatCtr(req: Request, res: Response, next: NextF
   }
 }
 
+export async function getPinnedFoldersCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const userSub = res.locals.userSub as string;
+    const folders = await cardService.getPinnedFolders(userSub);
+    res.status(200).json(folders);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function pinFolderCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect folder params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const userSub = res.locals.userSub as string;
+    const result = await cardService.pinFolder({
+      folderSub: params.sub,
+      userSub,
+    });
+
+    res.status(200).json(result);
+  } catch (e) {
+    next(e);
+  }
+}
+
+export async function unpinFolderCtr(req: Request, res: Response, next: NextFunction) {
+  try {
+    const params = { sub: req.params.sub };
+
+    if (!validateUpdateDeskParamsDto(params)) {
+      return next(
+        createError(422, 'Incorrect folder params', {
+          errors: validateUpdateDeskParamsDto.errors,
+        })
+      );
+    }
+
+    const userSub = res.locals.userSub as string;
+    const result = await cardService.unpinFolder({
+      folderSub: params.sub,
+      userSub,
+    });
+
+    res.status(200).json(result);
+  } catch (e) {
+    next(e);
+  }
+}
+
 export async function moveDeskToFolderCtr(req: Request, res: Response, next: NextFunction) {
   try {
     const params = { sub: req.params.sub };
