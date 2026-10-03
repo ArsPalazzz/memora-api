@@ -46,6 +46,7 @@ export const GET_DUE_COUNT_FOR_USER = `
     AND ucs.next_review <= NOW()
     AND d.status = 'active'
     AND d.creator_sub = $1
+    AND d.is_inbox = false
 `;
 
 export const GET_DUE_COUNT_BY_DESK = `
@@ -60,6 +61,7 @@ export const GET_DUE_COUNT_BY_DESK = `
     AND ucs.next_review <= NOW()
     AND d.status = 'active'
     AND d.creator_sub = $1
+    AND d.is_inbox = false
   GROUP BY d.sub, d.title
   HAVING COUNT(*) > 0
   ORDER BY due_count DESC, d.title ASC

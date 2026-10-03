@@ -33,11 +33,16 @@ export class ReviewRepository extends Table {
     return this.insertItem<string>(query, 'id');
   }
 
-  async addDueCardsToBatch(batchId: string, userSub: string, limit: number): Promise<void> {
+  async addDueCardsToBatch(
+    batchId: string,
+    userSub: string,
+    limit: number,
+    deskSubs: string[] | null
+  ): Promise<void> {
     const query: Query = {
       name: 'addDueCardsToBatch',
       text: ADD_DUE_CARDS_TO_BATCH,
-      values: [batchId, userSub, limit],
+      values: [batchId, userSub, limit, deskSubs],
     };
 
     await this.insertItem(query);

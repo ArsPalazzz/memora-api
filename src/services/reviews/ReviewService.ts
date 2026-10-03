@@ -13,6 +13,11 @@ type ReviewBatchResult = {
   inboxCount: number;
 };
 
+type StartReviewOptions = {
+  deskSubs?: string[] | null;
+  includeInbox?: boolean;
+};
+
 export class ReviewService {
   constructor(
     private readonly reviewRepository: ReviewRepository,
@@ -25,8 +30,11 @@ export class ReviewService {
     return this.cardService.getReviewDueSummary(userSub);
   }
 
-  async startReview(userSub: string): Promise<ReviewBatchResult> {
-    const batch = await this.createReviewBatch(userSub, { includeInbox: true });
+  async startReview(userSub: string, options: StartReviewOptions = {}): Promise<ReviewBatchResult> {
+    const batch = await this.createReviewBatch(userSub, {
+      includeInbox: options.includeInbox ?? true,
+      deskSubs: options.deskSubs === undefined ? null : options.deskSubs,
+    });
     if (!batch) {
       throw new BadRequestError('No cards to study');
     }
@@ -128,17 +136,25 @@ export class ReviewService {
 
   private async createReviewBatch(
     userSub: string,
-    options: { includeInbox: boolean }
+    options: { includeInbox: boolean; deskSubs?: string[] | null }
   ): Promise<ReviewBatchResult | null> {
     const reviewSettings = await this.cardService.getReviewSettingsByUserSub(userSub);
     const sessionLimit = reviewSettings.cards_per_session;
+    const deskSubs = options.deskSubs === undefined ? null : options.deskSubs;
 
     const batchId = await this.reviewRepository.createBatch(userSub);
     if (!batchId) {
       throw new Error('Cannot create batch');
     }
 
-    await this.reviewRepository.addDueCardsToBatch(batchId, userSub, sessionLimit);
+    if (deskSubs === null || deskSubs.length > 0) {
+      await this.reviewRepository.addDueCardsToBatch(
+        batchId,
+        userSub,
+        sessionLimit,
+        deskSubs
+      );
+    }
     const dueCount = await this.reviewRepository.getBatchCardCount(batchId);
 
     let inboxCount = 0;

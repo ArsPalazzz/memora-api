@@ -30,6 +30,8 @@ export const ADD_DUE_CARDS_TO_BATCH = `
     AND ucs.next_review <= NOW()
     AND d.status = 'active'
     AND d.creator_sub = $2
+    AND d.is_inbox = false
+    AND ($4::uuid[] IS NULL OR c.desk_sub = ANY($4::uuid[]))
   ORDER BY ucs.next_review ASC
   LIMIT $3
 `;
