@@ -15,21 +15,23 @@ export function unhandled(req: Request, res: Response, next: NextFunction) {
 }
 
 export function errors(
-  error: HttpError,
+  error: HttpError & { statusCode?: number },
   req: Request,
   res: Response,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   next: NextFunction
 ) {
+  const status = error.status || error.statusCode || 500;
+
   console.log(error);
-  if (!error.status) {
+  if (status >= 500) {
     logger.error('Internal Server Error', error.message);
   } else {
-    logger.info(`Handled error [${error.status}] :: ${error.message}`);
+    logger.info(`Handled error [${status}] :: ${error.message}`);
   }
 
   const userErrorResponse: UserErrorResponse = {
-    status: error.status || 500,
+    status,
     message: error.message || 'Internal Server Error',
   };
 
@@ -37,6 +39,6 @@ export function errors(
     userErrorResponse.errors = error.errors;
   }
 
-  res.status(error.status || 500);
+  res.status(status);
   res.json(userErrorResponse);
 }

@@ -1,10 +1,13 @@
 export class AppError extends Error {
   public readonly code: string;
   public readonly statusCode: number;
+  /** Alias for Express / http-errors handlers that read `error.status`. */
+  public readonly status: number;
 
   constructor(message: string, statusCode = 500, code = 'INTERNAL_ERROR') {
     super(message);
     this.statusCode = statusCode;
+    this.status = statusCode;
     this.code = code;
     Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace(this);
