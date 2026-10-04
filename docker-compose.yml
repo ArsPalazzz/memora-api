@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   memora-postgres-db:
     container_name: memora-postgres-db
@@ -9,25 +8,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_PORT: ${POSTGRES_PORT}
     ports:
       - "${POSTGRES_PORT}:${POSTGRES_INNER_PORT}"
     networks:
       - memora
     volumes:
-      - memora_pg_data:/var/lib/postgresql
-
-  # redis:
-  #   container_name: memora-redis
-  #   image: redis:alpine
-  #   ports:
-  #     - "${REDIS_PORT}:${REDIS_INNER_PORT}"
-  #   volumes:
-  #     - redis_data:/data
+      - memora_pg_data:/var/lib/postgresql/data
 
 volumes:
   memora_pg_data:
-  # redis_data:
 
 networks:
   memora:

@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+*.md
+docker-compose*.yml
+Dockerfile
+.dockerignore
+service-account.json
+**/*.test.ts

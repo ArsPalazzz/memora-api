@@ -6,6 +6,8 @@
     "test": "tsx --test src/**/*.test.ts",
     "dev": "tsx --watch --env-file .env src/index.ts",
     "dev:docker": "docker compose --env-file .env up",
+    "prod:docker": "docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env up -d --build",
+    "prod:docker:down": "docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env down",
     "build": "tsc && cp -r src/express/swagger dist/express && cp -r src/databases/postgre/migrations dist/databases/postgre/migrations",
     "start": "npm run migration:run:prod && node dist/index.js",
     "migrate": "node-pg-migrate",

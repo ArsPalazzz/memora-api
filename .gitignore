@@ -1,5 +1,7 @@
 ###Common
 **/node_modules
-**/.env*
+.env
+.env.*
+!.env.example
 service-account.json
 dist/

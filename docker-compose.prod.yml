@@ -1,0 +1,32 @@
+services:
+  memora-postgres-db:
+    restart: unless-stopped
+    # Do not expose Postgres to the public internet on the VM.
+    ports: !reset []
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: memora-api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      # Inside the compose network the DB is reachable by service name on 5432.
+      POSTGRES_HOST: memora-postgres-db
+      POSTGRES_PORT: ${POSTGRES_INNER_PORT:-5432}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@memora-postgres-db:${POSTGRES_INNER_PORT:-5432}/${POSTGRES_DB}
+    ports:
+      - "${PORT}:${PORT}"
+    depends_on:
+      memora-postgres-db:
+        condition: service_healthy
+    networks:
+      - memora
