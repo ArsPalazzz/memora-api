@@ -18,6 +18,7 @@ import {
   normalizeFeedStudyMode,
 } from './studyMode.const';
 import { resolveCardSpeechLanguages } from './cardLanguage.utils';
+import { CARD_ORIENTATION } from '../cards/card.const';
 
 export class GameService {
   constructor(
@@ -73,6 +74,7 @@ export class GameService {
 
     const reviewSettings = await this.cardService.getReviewSettingsByUserSub(userSub);
     const studyMode = reviewSettings?.study_mode ?? DEFAULT_REVIEW_STUDY_MODE;
+    const cardOrientation = reviewSettings?.card_orientation ?? CARD_ORIENTATION.NORMAL;
 
     const sessionId = uuidV4();
 
@@ -82,11 +84,13 @@ export class GameService {
       await this.gameSessionRepository.createReview(sessionId, userSub, batchId, studyMode, tx);
 
       const cardSubs = await this.reviewService.getCardSubsByBatchId(batchId);
-      const direction = this.resolveDirection('normal');
 
       await this.gameSessionCardRepository.createBulk(
         sessionId,
-        cardSubs.map((sub) => ({ cardSub: sub, direction })),
+        cardSubs.map((sub) => ({
+          cardSub: sub,
+          direction: this.resolveDirection(cardOrientation),
+        })),
         tx
       );
 
@@ -475,9 +479,9 @@ export class GameService {
     return Array.from(topics);
   }
 
-  private resolveDirection(deskOrientation: 'normal' | 'reversed' | 'mixed') {
-    if (deskOrientation === 'normal') return 'front_to_back';
-    if (deskOrientation === 'reversed') return 'back_to_front';
+  private resolveDirection(deskOrientation: CARD_ORIENTATION) {
+    if (deskOrientation === CARD_ORIENTATION.NORMAL) return 'front_to_back';
+    if (deskOrientation === CARD_ORIENTATION.REVERSED) return 'back_to_front';
 
     return Math.random() < 0.5 ? 'front_to_back' : 'back_to_front';
   }

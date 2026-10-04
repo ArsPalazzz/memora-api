@@ -782,6 +782,7 @@ export async function updateReviewSettingsCtr(req: Request, res: Response, next:
     const body = {
       cards_per_session: req.body.cards_per_session as number,
       study_mode: req.body.study_mode as StudyMode,
+      card_orientation: req.body.card_orientation as CARD_ORIENTATION,
     };
 
     if (!validateUpdateReviewSettingsBodyDto(body)) {

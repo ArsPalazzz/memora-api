@@ -1373,7 +1373,11 @@ export class CardService {
   }
 
   async updateReviewSettings(payload: {
-    body: { cards_per_session: number; study_mode: StudyMode };
+    body: {
+      cards_per_session: number;
+      study_mode: StudyMode;
+      card_orientation: CARD_ORIENTATION;
+    };
     creatorSub: string;
   }) {
     const { body, creatorSub } = payload;
@@ -1388,6 +1392,7 @@ export class CardService {
       userSub: creatorSub,
       cards_per_session: body.cards_per_session,
       study_mode: body.study_mode,
+      card_orientation: body.card_orientation,
     });
   }
 
